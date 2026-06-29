@@ -10,13 +10,18 @@ $organisations = $repository->all();
     <h1>Organisations</h1>
     <p>List and manage Organisations connected to DBG Platform.</p>
 
+    <?php if (isset($_GET['dbg_status']) && $_GET['dbg_status'] === 'created') : ?>
+        <div class="notice notice-success is-dismissible"><p>Organisation created.</p></div>
+    <?php endif; ?>
+
     <div class="dbg-platform-panel">
         <h2>Create Organisation</h2>
-        <form method="post" action="">
-            <p><input type="text" name="dbg_organisation_name" placeholder="Organisation name" class="regular-text"></p>
-            <p><input type="text" name="dbg_organisation_type" placeholder="company, club, association" class="regular-text"></p>
-            <p><button class="button button-primary" disabled>Create Organisation</button></p>
-            <p class="description">Form UI ready. Submission handler will be added in next sprint.</p>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="dbg_create_organisation">
+            <?php wp_nonce_field('dbg_create_organisation'); ?>
+            <p><input type="text" name="dbg_organisation_name" placeholder="Organisation name" class="regular-text" required></p>
+            <p><input type="text" name="dbg_organisation_type" placeholder="company, club, association" class="regular-text" required></p>
+            <p><button class="button button-primary">Create Organisation</button></p>
         </form>
     </div>
 
