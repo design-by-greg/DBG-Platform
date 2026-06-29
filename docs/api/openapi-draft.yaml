@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: DBG Platform API
+  version: 0.1.0-draft
+  description: Draft API contract for DBG Platform.
+servers:
+  - url: https://api.designbygreg.fr
+paths:
+  /organisations:
+    get:
+      summary: List organisations
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create organisation
+      responses:
+        '201':
+          description: Created
+  /organisations/{organisation_id}/projects:
+    get:
+      summary: List projects
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create project
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Created
+  /organisations/{organisation_id}/assets:
+    get:
+      summary: List assets
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create asset
+      parameters:
+        - name: organisation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Created
+  /commerce/quotes:
+    post:
+      summary: Create quote
+      responses:
+        '201':
+          description: Created
+  /orders:
+    post:
+      summary: Create order
+      responses:
+        '201':
+          description: Created
+  /production/jobs:
+    get:
+      summary: List production jobs
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create production job
+      responses:
+        '201':
+          description: Created
