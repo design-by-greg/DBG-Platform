@@ -1,0 +1,16 @@
+erDiagram
+    ORGANISATION ||--o{ BRAND : owns
+    ORGANISATION ||--o{ WORKSPACE : owns
+    ORGANISATION ||--o{ USER_MEMBERSHIP : has
+    BRAND ||--o{ PROJECT : groups
+    WORKSPACE ||--o{ PROJECT : contains
+    PROJECT ||--o{ ASSET : contains
+    ASSET ||--o{ ASSET_VERSION : versions
+    ASSET ||--o{ RESOURCE : files
+    ASSET ||--o{ PRODUCT_LIBRARY_ITEM : can_be
+    PROJECT ||--o{ ORDER : has
+    ORDER ||--o{ PRODUCTION_JOB : creates
+    PRODUCTION_JOB }o--|| SUPPLIER : assigned_to
+    PROJECT ||--o{ EVENT : emits
+    ASSET ||--o{ EVENT : emits
+    ORDER ||--o{ EVENT : emits
