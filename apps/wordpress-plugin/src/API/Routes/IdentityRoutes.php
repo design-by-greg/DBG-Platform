@@ -3,16 +3,19 @@
 namespace DBGPlatform\API\Routes;
 
 use DBGPlatform\Database\Repositories\OrganisationRepository;
+use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
 use WP_REST_Response;
 
 class IdentityRoutes
 {
     private OrganisationRepository $organisations;
+    private PermissionGate $gate;
 
     public function __construct()
     {
         $this->organisations = new OrganisationRepository();
+        $this->gate = new PermissionGate();
     }
 
     public function register(): void
@@ -21,12 +24,12 @@ class IdentityRoutes
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'listOrganisations'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this->gate, 'canRead'],
             ],
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'createOrganisation'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this->gate, 'canManage'],
             ],
         ]);
     }
