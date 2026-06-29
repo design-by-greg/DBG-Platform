@@ -4,6 +4,7 @@ namespace DBGPlatform\API\Routes;
 
 use DBGPlatform\API\ApiResponse;
 use DBGPlatform\API\ApiValidator;
+use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\OrganisationRepository;
 use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
@@ -13,11 +14,13 @@ class IdentityRoutes
 {
     private OrganisationRepository $organisations;
     private PermissionGate $gate;
+    private AuditLogger $audit;
 
     public function __construct()
     {
         $this->organisations = new OrganisationRepository();
         $this->gate = new PermissionGate();
+        $this->audit = new AuditLogger();
     }
 
     public function register(): void
@@ -53,6 +56,7 @@ class IdentityRoutes
             return $validation;
         }
         $id = $this->organisations->create($payload);
+        $this->audit->record('created', 'organisation', $id, $payload);
         return ApiResponse::created(['id' => $id, 'message' => 'Organisation created']);
     }
 
@@ -64,12 +68,14 @@ class IdentityRoutes
             return $validation;
         }
         $updated = $this->organisations->update((int) $request['id'], $payload);
+        $this->audit->record('updated', 'organisation', (int) $request['id'], $payload);
         return ApiResponse::ok(['updated' => $updated]);
     }
 
     public function deleteOrganisation(WP_REST_Request $request): WP_REST_Response
     {
         $deleted = $this->organisations->delete((int) $request['id']);
+        $this->audit->record('archived', 'organisation', (int) $request['id']);
         return ApiResponse::ok(['archived' => $deleted]);
     }
 
