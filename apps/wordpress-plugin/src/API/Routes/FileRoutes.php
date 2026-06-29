@@ -5,6 +5,7 @@ namespace DBGPlatform\API\Routes;
 use DBGPlatform\API\ApiResponse;
 use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
+use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Files\FileUploadService;
 use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
@@ -27,11 +28,47 @@ class FileRoutes
     {
         register_rest_route('dbg/v1', '/files', [
             [
+                'methods' => 'GET',
+                'callback' => [$this, 'listFiles'],
+                'permission_callback' => [$this->gate, 'canRead'],
+            ],
+            [
                 'methods' => 'POST',
                 'callback' => [$this, 'uploadFile'],
                 'permission_callback' => [$this->gate, 'canEditPosts'],
             ],
         ]);
+
+        register_rest_route('dbg/v1', '/files/(?P<id>\d+)', [
+            [
+                'methods' => 'GET',
+                'callback' => [$this, 'getFile'],
+                'permission_callback' => [$this->gate, 'canRead'],
+            ],
+            [
+                'methods' => 'DELETE',
+                'callback' => [$this, 'archiveFile'],
+                'permission_callback' => [$this->gate, 'canEditPosts'],
+            ],
+        ]);
+    }
+
+    public function listFiles(WP_REST_Request $request): WP_REST_Response
+    {
+        return ApiResponse::ok(['data' => (new FileRecordRepository())->all(100)]);
+    }
+
+    public function getFile(WP_REST_Request $request): WP_REST_Response
+    {
+        $file = (new FileRecordRepository())->find((int) $request['id']);
+        return $file ? ApiResponse::ok(['data' => $file]) : ApiResponse::notFound('File not found');
+    }
+
+    public function archiveFile(WP_REST_Request $request): WP_REST_Response
+    {
+        $archived = (new FileRecordRepository())->archive((int) $request['id']);
+        $this->audit->record('archived', 'file', (int) $request['id'], ['archived' => $archived]);
+        return ApiResponse::ok(['archived' => $archived]);
     }
 
     public function uploadFile(WP_REST_Request $request): WP_REST_Response
@@ -66,8 +103,9 @@ class FileRoutes
         ]);
 
         $result['asset_id'] = $assetId;
+        $result['file_record_id'] = (new FileRecordRepository())->create($result);
 
-        $this->audit->record('uploaded', 'file', $assetId, $result);
+        $this->audit->record('uploaded', 'file', $result['file_record_id'], $result);
 
         return ApiResponse::created([
             'message' => 'File uploaded',
