@@ -28,10 +28,10 @@ $assets = $repository->all();
     <div class="dbg-platform-panel">
         <h2>Existing Assets</h2>
         <table class="widefat striped">
-            <thead><tr><th>ID</th><th>Organisation</th><th>Project</th><th>Type</th><th>Name</th><th>Status</th></tr></thead>
+            <thead><tr><th>ID</th><th>Organisation</th><th>Project</th><th>Type</th><th>Name</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
             <?php if (empty($assets)) : ?>
-                <tr><td colspan="6">No Assets found.</td></tr>
+                <tr><td colspan="7">No Assets found.</td></tr>
             <?php else : ?>
                 <?php foreach ($assets as $asset) : ?>
                     <tr>
@@ -41,6 +41,14 @@ $assets = $repository->all();
                         <td><?php echo esc_html($asset['type']); ?></td>
                         <td><?php echo esc_html($asset['name']); ?></td>
                         <td><?php echo esc_html($asset['status']); ?></td>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <input type="hidden" name="action" value="dbg_delete_asset">
+                                <input type="hidden" name="dbg_id" value="<?php echo esc_attr($asset['id']); ?>">
+                                <?php wp_nonce_field('dbg_delete_asset'); ?>
+                                <button class="button">Archive</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
