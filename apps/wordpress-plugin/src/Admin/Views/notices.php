@@ -10,6 +10,7 @@ $successMessages = [
     'created' => 'Item created successfully.',
     'updated' => 'Item updated successfully.',
     'deleted' => 'Item archived successfully.',
+    'uploaded' => 'File uploaded successfully.',
 ];
 
 if (isset($successMessages[$status])) {
