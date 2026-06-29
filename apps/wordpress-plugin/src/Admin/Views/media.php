@@ -45,7 +45,7 @@ $folders = $folderRepository->all(['status' => 'active']);
 
     <div class="dbg-platform-panel">
         <h2>Upload files</h2>
-        <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" data-dbg-upload-form>
             <input type="hidden" name="action" value="dbg_upload_media">
             <?php wp_nonce_field('dbg_upload_media'); ?>
             <p><input type="number" name="organisation_id" placeholder="Organisation ID" class="regular-text" required></p>
@@ -62,6 +62,12 @@ $folders = $folderRepository->all(['status' => 'active']);
                 <strong data-dbg-dropzone-label>Drop files here or click to select</strong>
                 <span>PDF, PNG, JPG, SVG, ZIP, EPS, AI — max 50 MB per file</span>
                 <input type="file" name="files[]" multiple required>
+            </div>
+            <div class="dbg-upload-progress" data-dbg-upload-progress hidden>
+                <div class="dbg-upload-progress-track">
+                    <span class="dbg-upload-progress-bar" data-dbg-upload-progress-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
+                </div>
+                <span class="dbg-upload-progress-text" data-dbg-upload-progress-text>Waiting...</span>
             </div>
             <p><button class="button button-primary">Upload files</button></p>
         </form>
