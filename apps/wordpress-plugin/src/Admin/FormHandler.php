@@ -6,6 +6,7 @@ use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Database\Repositories\FileVersionRepository;
+use DBGPlatform\Database\Repositories\MediaFolderRepository;
 use DBGPlatform\Database\Repositories\OrganisationRepository;
 use DBGPlatform\Database\Repositories\ProjectRepository;
 use DBGPlatform\Files\FileUploadService;
@@ -30,6 +31,8 @@ class FormHandler
         add_action('admin_post_dbg_archive_file', [$this, 'archiveFile']);
         add_action('admin_post_dbg_download_file', [$this, 'downloadFile']);
         add_action('admin_post_dbg_upload_file_version', [$this, 'uploadFileVersion']);
+        add_action('admin_post_dbg_create_media_folder', [$this, 'createMediaFolder']);
+        add_action('admin_post_dbg_move_file_folder', [$this, 'moveFileFolder']);
     }
 
     public function createOrganisation(): void
@@ -124,6 +127,7 @@ class FormHandler
 
         $organisationId = absint($_POST['organisation_id'] ?? 0);
         $projectId = absint($_POST['project_id'] ?? 0);
+        $folderId = absint($_POST['folder_id'] ?? 0);
 
         if ($organisationId <= 0) {
             $this->redirect('dbg-platform-media', 'error', ['Organisation ID is required.']);
@@ -150,6 +154,7 @@ class FormHandler
         ]);
 
         $result['asset_id'] = $assetId;
+        $result['folder_id'] = $folderId;
         $result['file_record_id'] = (new FileRecordRepository())->create($result);
         (new FileVersionRepository())->create($result['file_record_id'], $result, 'Initial upload');
 
@@ -188,6 +193,37 @@ class FormHandler
 
         (new AuditLogger())->record('version_uploaded', 'file', $fileId, ['version_id' => $versionId]);
 
+        $this->redirect('dbg-platform-media', 'updated');
+    }
+
+    public function createMediaFolder(): void
+    {
+        $this->guard('dbg_create_media_folder');
+
+        if (trim((string) ($_POST['folder_name'] ?? '')) === '') {
+            $this->redirect('dbg-platform-media', 'error', ['Folder name is required.']);
+        }
+
+        $folderId = (new MediaFolderRepository())->create([
+            'organisation_id' => absint($_POST['organisation_id'] ?? 0),
+            'project_id' => absint($_POST['project_id'] ?? 0),
+            'parent_id' => absint($_POST['parent_id'] ?? 0),
+            'name' => $_POST['folder_name'] ?? '',
+        ]);
+
+        (new AuditLogger())->record('created', 'media_folder', $folderId, []);
+        $this->redirect('dbg-platform-media', 'created');
+    }
+
+    public function moveFileFolder(): void
+    {
+        $this->guard('dbg_move_file_folder');
+
+        $fileId = absint($_POST['file_id'] ?? 0);
+        $folderId = absint($_POST['folder_id'] ?? 0);
+        $moved = (new FileRecordRepository())->moveToFolder($fileId, $folderId);
+
+        (new AuditLogger())->record('moved', 'file', $fileId, ['folder_id' => $folderId, 'moved' => $moved]);
         $this->redirect('dbg-platform-media', 'updated');
     }
 
