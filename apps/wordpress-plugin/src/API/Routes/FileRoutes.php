@@ -83,10 +83,9 @@ class FileRoutes
 
     public function uploadFile(WP_REST_Request $request): WP_REST_Response
     {
-        $files = $request->get_file_params();
-        $file = $files['file'] ?? null;
+        $files = $this->normaliseFiles($request->get_file_params());
 
-        if (!$file) {
+        if (empty($files)) {
             return ApiResponse::validation(['file is required.']);
         }
 
@@ -94,33 +93,80 @@ class FileRoutes
             'organisation_id' => absint($request->get_param('organisation_id')),
             'project_id' => absint($request->get_param('project_id')),
         ];
+        $folderId = absint($request->get_param('folder_id'));
 
         if ($context['organisation_id'] <= 0) {
             return ApiResponse::validation(['organisation_id is required.']);
         }
 
-        $result = $this->uploads->upload($file, $context);
+        $uploaded = [];
+        $errors = [];
 
-        if (empty($result['success'])) {
-            return ApiResponse::validation([$result['message'] ?? 'Upload failed.']);
+        foreach ($files as $file) {
+            $result = $this->uploads->upload($file, $context);
+
+            if (empty($result['success'])) {
+                $errors[] = $result['message'] ?? 'Upload failed.';
+                continue;
+            }
+
+            $assetId = (new AssetRepository())->create([
+                'organisation_id' => $context['organisation_id'],
+                'project_id' => $context['project_id'],
+                'type' => 'document',
+                'name' => $result['original_name'],
+            ]);
+
+            $result['asset_id'] = $assetId;
+            $result['folder_id'] = $folderId;
+            $result['file_record_id'] = (new FileRecordRepository())->create($result);
+            $this->audit->record('uploaded', 'file', $result['file_record_id'], $result);
+            $uploaded[] = $result;
         }
 
-        $assetId = (new AssetRepository())->create([
-            'organisation_id' => $context['organisation_id'],
-            'project_id' => $context['project_id'],
-            'type' => 'document',
-            'name' => $result['original_name'],
-        ]);
-
-        $result['asset_id'] = $assetId;
-        $result['folder_id'] = absint($request->get_param('folder_id'));
-        $result['file_record_id'] = (new FileRecordRepository())->create($result);
-
-        $this->audit->record('uploaded', 'file', $result['file_record_id'], $result);
+        if (empty($uploaded) && !empty($errors)) {
+            return ApiResponse::validation($errors);
+        }
 
         return ApiResponse::created([
-            'message' => 'File uploaded',
-            'data' => $result,
+            'message' => count($uploaded) . ' file(s) uploaded',
+            'data' => $uploaded,
+            'errors' => $errors,
         ]);
+    }
+
+    private function normaliseFiles(array $params): array
+    {
+        if (!empty($params['file']) && is_array($params['file']['name'] ?? null)) {
+            return $this->splitFileArray($params['file']);
+        }
+
+        if (!empty($params['files']) && is_array($params['files']['name'] ?? null)) {
+            return $this->splitFileArray($params['files']);
+        }
+
+        if (!empty($params['file'])) {
+            return [$params['file']];
+        }
+
+        return [];
+    }
+
+    private function splitFileArray(array $fileArray): array
+    {
+        $files = [];
+        foreach ((array) ($fileArray['name'] ?? []) as $index => $name) {
+            if ((int) ($fileArray['error'][$index] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                continue;
+            }
+            $files[] = [
+                'name' => $name,
+                'type' => $fileArray['type'][$index] ?? '',
+                'tmp_name' => $fileArray['tmp_name'][$index] ?? '',
+                'error' => $fileArray['error'][$index] ?? 0,
+                'size' => $fileArray['size'][$index] ?? 0,
+            ];
+        }
+        return $files;
     }
 }
