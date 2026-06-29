@@ -57,10 +57,13 @@ class FileRoutes
             'search' => sanitize_text_field($request->get_param('search') ?? ''),
         ];
 
-        $limit = absint($request->get_param('limit') ?? 100);
+        $page = absint($request->get_param('page') ?? 1);
+        $perPage = absint($request->get_param('per_page') ?? $request->get_param('limit') ?? 25);
+        $result = (new FileRecordRepository())->paginated($filters, $page, $perPage);
 
         return ApiResponse::ok([
-            'data' => (new FileRecordRepository())->search($filters, $limit),
+            'data' => $result['items'],
+            'pagination' => $result['pagination'],
             'filters' => $filters,
         ]);
     }
