@@ -36,7 +36,7 @@ class FileRoutes
 
         register_rest_route('dbg/v1', '/files/(?P<id>\d+)', [
             ['methods' => 'GET', 'callback' => [$this, 'getFile'], 'permission_callback' => [$this->gate, 'canRead']],
-            ['methods' => 'PATCH', 'callback' => [$this, 'updateFileFolder'], 'permission_callback' => [$this->gate, 'canEditPosts']],
+            ['methods' => 'PATCH', 'callback' => [$this, 'updateFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
             ['methods' => 'DELETE', 'callback' => [$this, 'archiveFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
         ]);
     }
@@ -67,14 +67,31 @@ class FileRoutes
         return $file ? ApiResponse::ok(['data' => $file]) : ApiResponse::notFound('File not found');
     }
 
-    public function updateFileFolder(WP_REST_Request $request): WP_REST_Response
+    public function updateFile(WP_REST_Request $request): WP_REST_Response
     {
         $payload = $request->get_json_params() ?: [];
-        $folderId = absint($payload['folder_id'] ?? $request->get_param('folder_id'));
         $fileId = (int) $request['id'];
-        $updated = (new FileRecordRepository())->moveToFolder($fileId, $folderId);
-        $this->audit->record('moved', 'file', $fileId, ['folder_id' => $folderId, 'updated' => $updated]);
-        return ApiResponse::ok(['updated' => $updated, 'folder_id' => $folderId]);
+        $repository = new FileRecordRepository();
+        $updated = false;
+        $changes = [];
+
+        if (array_key_exists('folder_id', $payload) || $request->get_param('folder_id') !== null) {
+            $folderId = absint($payload['folder_id'] ?? $request->get_param('folder_id'));
+            $updated = $repository->moveToFolder($fileId, $folderId) || $updated;
+            $changes['folder_id'] = $folderId;
+        }
+
+        if (!empty($payload['original_name']) || $request->get_param('original_name') !== null) {
+            $name = sanitize_file_name((string) ($payload['original_name'] ?? $request->get_param('original_name')));
+            if ($name === '') {
+                return ApiResponse::validation(['original_name is required.']);
+            }
+            $updated = $repository->rename($fileId, $name) || $updated;
+            $changes['original_name'] = $name;
+        }
+
+        $this->audit->record('updated', 'file', $fileId, ['updated' => $updated, 'changes' => $changes]);
+        return ApiResponse::ok(['updated' => $updated, 'changes' => $changes]);
     }
 
     public function archiveFile(WP_REST_Request $request): WP_REST_Response
