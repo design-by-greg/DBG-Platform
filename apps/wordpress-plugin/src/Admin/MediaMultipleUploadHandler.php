@@ -7,6 +7,7 @@ use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Database\Repositories\FileVersionRepository;
 use DBGPlatform\Files\FileUploadService;
+use DBGPlatform\Files\ThumbnailService;
 
 class MediaMultipleUploadHandler
 {
@@ -43,6 +44,7 @@ class MediaMultipleUploadHandler
 
         $uploaded = 0;
         $errors = [];
+        $thumbnailService = new ThumbnailService();
 
         foreach ($files as $file) {
             $result = (new FileUploadService())->upload($file, [
@@ -53,6 +55,12 @@ class MediaMultipleUploadHandler
             if (empty($result['success'])) {
                 $errors[] = ($file['name'] ?? 'File') . ': ' . ($result['message'] ?? 'Upload failed.');
                 continue;
+            }
+
+            $thumbnail = $thumbnailService->generate($result);
+            if (!empty($thumbnail['success'])) {
+                $result['thumbnail_path'] = $thumbnail['thumbnail_path'];
+                $result['thumbnail_url'] = $thumbnail['thumbnail_url'];
             }
 
             $assetId = (new AssetRepository())->create([
