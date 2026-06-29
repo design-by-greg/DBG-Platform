@@ -17,7 +17,7 @@ class Migrator
             dbDelta($sql);
         }
 
-        update_option('dbg_platform_db_version', '0.1.4');
+        update_option('dbg_platform_db_version', '0.1.5');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -94,6 +94,8 @@ class Migrator
                 size BIGINT UNSIGNED NOT NULL DEFAULT 0,
                 path TEXT NOT NULL,
                 url TEXT NOT NULL,
+                thumbnail_path TEXT NULL,
+                thumbnail_url TEXT NULL,
                 status VARCHAR(64) NOT NULL DEFAULT 'active',
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
