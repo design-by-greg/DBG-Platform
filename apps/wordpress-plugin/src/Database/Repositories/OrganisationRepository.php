@@ -11,6 +11,14 @@ class OrganisationRepository
         return $wpdb->get_results("SELECT * FROM {$table} ORDER BY id DESC", ARRAY_A) ?: [];
     }
 
+    public function find(int $id): ?array
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_organisations';
+        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$table} WHERE id = %d", $id), ARRAY_A);
+        return $row ?: null;
+    }
+
     public function create(array $data): int
     {
         global $wpdb;
@@ -26,5 +34,28 @@ class OrganisationRepository
         ]);
 
         return (int) $wpdb->insert_id;
+    }
+
+    public function update(int $id, array $data): bool
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_organisations';
+
+        return false !== $wpdb->update($table, [
+            'name' => sanitize_text_field($data['name'] ?? ''),
+            'type' => sanitize_text_field($data['type'] ?? 'company'),
+            'updated_at' => current_time('mysql'),
+        ], ['id' => $id]);
+    }
+
+    public function delete(int $id): bool
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_organisations';
+
+        return false !== $wpdb->update($table, [
+            'status' => 'archived',
+            'updated_at' => current_time('mysql'),
+        ], ['id' => $id]);
     }
 }
