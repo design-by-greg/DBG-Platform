@@ -40,7 +40,7 @@ $files = $fileRepository->all(100);
                     <th>Type</th>
                     <th>Size</th>
                     <th>Status</th>
-                    <th>Open</th>
+                    <th>Download</th>
                     <th>Archive</th>
                 </tr>
             </thead>
@@ -49,6 +49,7 @@ $files = $fileRepository->all(100);
                 <tr><td colspan="11">No file records found.</td></tr>
             <?php else : ?>
                 <?php foreach ($files as $file) : ?>
+                    <?php $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file'); ?>
                     <tr>
                         <td><?php echo esc_html($file['id']); ?></td>
                         <td><?php echo wp_kses_post($previewService->render($file)); ?></td>
@@ -59,7 +60,7 @@ $files = $fileRepository->all(100);
                         <td><?php echo esc_html($file['mime_type']); ?></td>
                         <td><?php echo esc_html(size_format((int) $file['size'])); ?></td>
                         <td><?php echo esc_html($file['status']); ?></td>
-                        <td><a href="<?php echo esc_url($file['url']); ?>" target="_blank" rel="noopener">Open</a></td>
+                        <td><a class="button" href="<?php echo esc_url($downloadUrl); ?>">Download</a></td>
                         <td>
                             <?php if ($file['status'] !== 'archived') : ?>
                                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
