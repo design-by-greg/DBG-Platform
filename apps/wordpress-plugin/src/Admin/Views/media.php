@@ -44,7 +44,7 @@ $folders = $folderRepository->all(['status' => 'active']);
     </div>
 
     <div class="dbg-platform-panel">
-        <h2>Upload file</h2>
+        <h2>Upload files</h2>
         <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <input type="hidden" name="action" value="dbg_upload_media">
             <?php wp_nonce_field('dbg_upload_media'); ?>
@@ -58,9 +58,9 @@ $folders = $folderRepository->all(['status' => 'active']);
                     <?php endforeach; ?>
                 </select>
             </p>
-            <p><input type="file" name="file" required></p>
-            <p class="description">Accepted: PDF, PNG, JPG, SVG, ZIP, EPS, AI. Max size: 50 MB.</p>
-            <p><button class="button button-primary">Upload file</button></p>
+            <p><input type="file" name="files[]" multiple required></p>
+            <p class="description">Multiple files accepted. PDF, PNG, JPG, SVG, ZIP, EPS, AI. Max size: 50 MB per file.</p>
+            <p><button class="button button-primary">Upload files</button></p>
         </form>
     </div>
 
