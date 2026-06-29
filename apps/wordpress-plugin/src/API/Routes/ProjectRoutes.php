@@ -3,16 +3,19 @@
 namespace DBGPlatform\API\Routes;
 
 use DBGPlatform\Database\Repositories\ProjectRepository;
+use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
 use WP_REST_Response;
 
 class ProjectRoutes
 {
     private ProjectRepository $projects;
+    private PermissionGate $gate;
 
     public function __construct()
     {
         $this->projects = new ProjectRepository();
+        $this->gate = new PermissionGate();
     }
 
     public function register(): void
@@ -21,12 +24,12 @@ class ProjectRoutes
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'listProjects'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this->gate, 'canRead'],
             ],
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'createProject'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this->gate, 'canEditPosts'],
             ],
         ]);
     }
