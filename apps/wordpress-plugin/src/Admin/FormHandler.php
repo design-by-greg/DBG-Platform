@@ -11,72 +11,141 @@ class FormHandler
     public function register(): void
     {
         add_action('admin_post_dbg_create_organisation', [$this, 'createOrganisation']);
+        add_action('admin_post_dbg_update_organisation', [$this, 'updateOrganisation']);
+        add_action('admin_post_dbg_delete_organisation', [$this, 'deleteOrganisation']);
         add_action('admin_post_dbg_create_project', [$this, 'createProject']);
+        add_action('admin_post_dbg_update_project', [$this, 'updateProject']);
+        add_action('admin_post_dbg_delete_project', [$this, 'deleteProject']);
         add_action('admin_post_dbg_create_asset', [$this, 'createAsset']);
+        add_action('admin_post_dbg_update_asset', [$this, 'updateAsset']);
+        add_action('admin_post_dbg_delete_asset', [$this, 'deleteAsset']);
     }
 
     public function createOrganisation(): void
     {
         $this->guard('dbg_create_organisation');
-
-        $validator = (new FormValidator())
-            ->required('dbg_organisation_name', 'Organisation name', $_POST)
-            ->allowedValue('dbg_organisation_type', 'Organisation type', ['company', 'club', 'association', 'public_body', 'partner'], $_POST);
-
-        if (!$validator->passes()) {
-            $this->redirect('dbg-platform-organisations', 'error', $validator->errors());
-        }
-
-        (new OrganisationRepository())->create([
-            'name' => sanitize_text_field($_POST['dbg_organisation_name'] ?? ''),
-            'type' => sanitize_key($_POST['dbg_organisation_type'] ?? 'company'),
-        ]);
-
+        $this->validateOrganisation();
+        (new OrganisationRepository())->create($this->organisationData());
         $this->redirect('dbg-platform-organisations', 'created');
+    }
+
+    public function updateOrganisation(): void
+    {
+        $this->guard('dbg_update_organisation');
+        $this->validateOrganisation();
+        (new OrganisationRepository())->update(absint($_POST['dbg_id'] ?? 0), $this->organisationData());
+        $this->redirect('dbg-platform-organisations', 'updated');
+    }
+
+    public function deleteOrganisation(): void
+    {
+        $this->guard('dbg_delete_organisation');
+        (new OrganisationRepository())->delete(absint($_POST['dbg_id'] ?? 0));
+        $this->redirect('dbg-platform-organisations', 'deleted');
     }
 
     public function createProject(): void
     {
         $this->guard('dbg_create_project');
-
-        $validator = (new FormValidator())
-            ->positiveInt('dbg_project_organisation_id', 'Organisation ID', $_POST)
-            ->required('dbg_project_name', 'Project name', $_POST);
-
-        if (!$validator->passes()) {
-            $this->redirect('dbg-platform-projects', 'error', $validator->errors());
-        }
-
-        (new ProjectRepository())->create([
-            'organisation_id' => absint($_POST['dbg_project_organisation_id'] ?? 0),
-            'name' => sanitize_text_field($_POST['dbg_project_name'] ?? ''),
-            'description' => sanitize_textarea_field($_POST['dbg_project_description'] ?? ''),
-        ]);
-
+        $this->validateProject();
+        (new ProjectRepository())->create($this->projectData());
         $this->redirect('dbg-platform-projects', 'created');
+    }
+
+    public function updateProject(): void
+    {
+        $this->guard('dbg_update_project');
+        $this->validateProject();
+        (new ProjectRepository())->update(absint($_POST['dbg_id'] ?? 0), $this->projectData());
+        $this->redirect('dbg-platform-projects', 'updated');
+    }
+
+    public function deleteProject(): void
+    {
+        $this->guard('dbg_delete_project');
+        (new ProjectRepository())->delete(absint($_POST['dbg_id'] ?? 0));
+        $this->redirect('dbg-platform-projects', 'deleted');
     }
 
     public function createAsset(): void
     {
         $this->guard('dbg_create_asset');
+        $this->validateAsset();
+        (new AssetRepository())->create($this->assetData());
+        $this->redirect('dbg-platform-assets', 'created');
+    }
 
+    public function updateAsset(): void
+    {
+        $this->guard('dbg_update_asset');
+        $this->validateAsset();
+        (new AssetRepository())->update(absint($_POST['dbg_id'] ?? 0), $this->assetData());
+        $this->redirect('dbg-platform-assets', 'updated');
+    }
+
+    public function deleteAsset(): void
+    {
+        $this->guard('dbg_delete_asset');
+        (new AssetRepository())->delete(absint($_POST['dbg_id'] ?? 0));
+        $this->redirect('dbg-platform-assets', 'deleted');
+    }
+
+    private function validateOrganisation(): void
+    {
+        $validator = (new FormValidator())
+            ->required('dbg_organisation_name', 'Organisation name', $_POST)
+            ->allowedValue('dbg_organisation_type', 'Organisation type', ['company', 'club', 'association', 'public_body', 'partner'], $_POST);
+        if (!$validator->passes()) {
+            $this->redirect('dbg-platform-organisations', 'error', $validator->errors());
+        }
+    }
+
+    private function validateProject(): void
+    {
+        $validator = (new FormValidator())
+            ->positiveInt('dbg_project_organisation_id', 'Organisation ID', $_POST)
+            ->required('dbg_project_name', 'Project name', $_POST);
+        if (!$validator->passes()) {
+            $this->redirect('dbg-platform-projects', 'error', $validator->errors());
+        }
+    }
+
+    private function validateAsset(): void
+    {
         $validator = (new FormValidator())
             ->positiveInt('dbg_asset_organisation_id', 'Organisation ID', $_POST)
             ->allowedValue('dbg_asset_type', 'Asset type', ['logo', 'product', 'bat', 'document', 'image', 'template'], $_POST)
             ->required('dbg_asset_name', 'Asset name', $_POST);
-
         if (!$validator->passes()) {
             $this->redirect('dbg-platform-assets', 'error', $validator->errors());
         }
+    }
 
-        (new AssetRepository())->create([
+    private function organisationData(): array
+    {
+        return [
+            'name' => sanitize_text_field($_POST['dbg_organisation_name'] ?? ''),
+            'type' => sanitize_key($_POST['dbg_organisation_type'] ?? 'company'),
+        ];
+    }
+
+    private function projectData(): array
+    {
+        return [
+            'organisation_id' => absint($_POST['dbg_project_organisation_id'] ?? 0),
+            'name' => sanitize_text_field($_POST['dbg_project_name'] ?? ''),
+            'description' => sanitize_textarea_field($_POST['dbg_project_description'] ?? ''),
+        ];
+    }
+
+    private function assetData(): array
+    {
+        return [
             'organisation_id' => absint($_POST['dbg_asset_organisation_id'] ?? 0),
             'project_id' => absint($_POST['dbg_asset_project_id'] ?? 0),
             'type' => sanitize_key($_POST['dbg_asset_type'] ?? 'document'),
             'name' => sanitize_text_field($_POST['dbg_asset_name'] ?? ''),
-        ]);
-
-        $this->redirect('dbg-platform-assets', 'created');
+        ];
     }
 
     private function guard(string $action): void
@@ -84,7 +153,6 @@ class FormHandler
         if (!current_user_can('manage_options')) {
             wp_die('Insufficient permissions.');
         }
-
         check_admin_referer($action);
     }
 
@@ -93,7 +161,6 @@ class FormHandler
         if (!empty($errors)) {
             set_transient('dbg_platform_form_errors_' . get_current_user_id(), $errors, 60);
         }
-
         wp_safe_redirect(admin_url('admin.php?page=' . $page . '&dbg_status=' . $status));
         exit;
     }
