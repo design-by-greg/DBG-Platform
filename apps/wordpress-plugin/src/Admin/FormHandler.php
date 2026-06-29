@@ -5,6 +5,7 @@ namespace DBGPlatform\Admin;
 use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\FileRecordRepository;
+use DBGPlatform\Database\Repositories\FileVersionRepository;
 use DBGPlatform\Database\Repositories\OrganisationRepository;
 use DBGPlatform\Database\Repositories\ProjectRepository;
 use DBGPlatform\Files\FileUploadService;
@@ -28,6 +29,7 @@ class FormHandler
         add_action('admin_post_dbg_upload_media', [$this, 'uploadMedia']);
         add_action('admin_post_dbg_archive_file', [$this, 'archiveFile']);
         add_action('admin_post_dbg_download_file', [$this, 'downloadFile']);
+        add_action('admin_post_dbg_upload_file_version', [$this, 'uploadFileVersion']);
     }
 
     public function createOrganisation(): void
@@ -149,10 +151,44 @@ class FormHandler
 
         $result['asset_id'] = $assetId;
         $result['file_record_id'] = (new FileRecordRepository())->create($result);
+        (new FileVersionRepository())->create($result['file_record_id'], $result, 'Initial upload');
 
         (new AuditLogger())->record('uploaded', 'file', $result['file_record_id'], $result);
 
         $this->redirect('dbg-platform-media', 'uploaded');
+    }
+
+    public function uploadFileVersion(): void
+    {
+        $this->guard('dbg_upload_file_version');
+
+        $fileId = absint($_POST['file_id'] ?? 0);
+        $existing = (new FileRecordRepository())->find($fileId);
+
+        if (!$existing) {
+            $this->redirect('dbg-platform-media', 'error', ['File record not found.']);
+        }
+
+        if (empty($_FILES['file'])) {
+            $this->redirect('dbg-platform-media', 'error', ['Version file is required.']);
+        }
+
+        $result = (new FileUploadService())->upload($_FILES['file'], [
+            'organisation_id' => absint($existing['organisation_id']),
+            'project_id' => absint($existing['project_id']),
+        ]);
+
+        if (empty($result['success'])) {
+            $this->redirect('dbg-platform-media', 'error', [$result['message'] ?? 'Upload failed.']);
+        }
+
+        $result['asset_id'] = absint($existing['asset_id']);
+        $versionId = (new FileVersionRepository())->create($fileId, $result, sanitize_textarea_field($_POST['version_note'] ?? ''));
+        (new FileRecordRepository())->replace($fileId, $result);
+
+        (new AuditLogger())->record('version_uploaded', 'file', $fileId, ['version_id' => $versionId]);
+
+        $this->redirect('dbg-platform-media', 'updated');
     }
 
     public function archiveFile(): void
