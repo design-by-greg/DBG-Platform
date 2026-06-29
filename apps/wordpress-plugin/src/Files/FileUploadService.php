@@ -8,6 +8,7 @@ class FileUploadService
         'application/pdf',
         'image/png',
         'image/jpeg',
+        'image/webp',
         'image/svg+xml',
         'application/zip',
         'application/x-zip-compressed',
@@ -53,6 +54,9 @@ class FileUploadService
             return ['success' => false, 'message' => 'Unable to move uploaded file.'];
         }
 
+        $compression = (new ImageCompressionService())->compress($destination, $mime);
+        clearstatcache(true, $destination);
+
         $relativePath = 'dbg-platform/org-' . $organisationId . '/project-' . $projectId . '/' . $filename;
 
         return [
@@ -60,11 +64,12 @@ class FileUploadService
             'original_name' => $originalName,
             'filename' => $filename,
             'mime_type' => $mime,
-            'size' => (int) $file['size'],
+            'size' => file_exists($destination) ? (int) filesize($destination) : (int) $file['size'],
             'path' => $relativePath,
             'url' => trailingslashit($baseUrl) . 'org-' . $organisationId . '/project-' . $projectId . '/' . $filename,
             'organisation_id' => $organisationId,
             'project_id' => $projectId,
+            'compression' => $compression,
         ];
     }
 }
