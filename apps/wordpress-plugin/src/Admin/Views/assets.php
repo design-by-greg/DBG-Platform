@@ -10,9 +10,7 @@ $assets = $repository->all();
     <h1>Assets</h1>
     <p>Manage reusable assets owned by Organisations.</p>
 
-    <?php if (isset($_GET['dbg_status']) && $_GET['dbg_status'] === 'created') : ?>
-        <div class="notice notice-success is-dismissible"><p>Asset created.</p></div>
-    <?php endif; ?>
+    <?php include DBG_PLATFORM_PLUGIN_DIR . 'src/Admin/Views/notices.php'; ?>
 
     <div class="dbg-platform-panel">
         <h2>Create Asset</h2>
