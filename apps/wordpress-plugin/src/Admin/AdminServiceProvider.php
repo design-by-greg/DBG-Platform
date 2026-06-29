@@ -39,6 +39,10 @@ class AdminServiceProvider
         }
 
         wp_enqueue_style('dbg-platform-admin', DBG_PLATFORM_PLUGIN_URL . 'assets/admin.css', [], DBG_PLATFORM_VERSION);
+
+        if (strpos($hook, 'dbg-platform-media') !== false) {
+            wp_enqueue_script('dbg-platform-admin-media', DBG_PLATFORM_PLUGIN_URL . 'assets/admin-media.js', [], DBG_PLATFORM_VERSION, true);
+        }
     }
 
     public function renderDashboard(): void
