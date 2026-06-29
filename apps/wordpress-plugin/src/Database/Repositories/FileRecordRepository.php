@@ -4,6 +4,16 @@ namespace DBGPlatform\Database\Repositories;
 
 class FileRecordRepository
 {
+    private array $sortableColumns = [
+        'id' => 'id',
+        'name' => 'original_name',
+        'type' => 'mime_type',
+        'size' => 'size',
+        'status' => 'status',
+        'created_at' => 'created_at',
+        'updated_at' => 'updated_at',
+    ];
+
     public function all(int $limit = 100): array
     {
         return $this->search([], $limit);
@@ -23,13 +33,14 @@ class FileRecordRepository
         $offset = ($page - 1) * $perPage;
 
         [$whereSql, $params] = $this->whereSql($filters);
+        $orderSql = $this->orderSql($filters);
 
         $countSql = "SELECT COUNT(*) FROM {$table}" . $whereSql;
         $total = !empty($params)
             ? (int) $wpdb->get_var($wpdb->prepare($countSql, $params))
             : (int) $wpdb->get_var($countSql);
 
-        $sql = "SELECT * FROM {$table}" . $whereSql . ' ORDER BY id DESC LIMIT %d OFFSET %d';
+        $sql = "SELECT * FROM {$table}" . $whereSql . $orderSql . ' LIMIT %d OFFSET %d';
         $queryParams = array_merge($params, [$perPage, $offset]);
 
         return [
@@ -40,6 +51,7 @@ class FileRecordRepository
                 'total' => $total,
                 'total_pages' => max(1, (int) ceil($total / $perPage)),
             ],
+            'sort' => $this->normaliseSort($filters),
         ];
     }
 
@@ -87,6 +99,28 @@ class FileRecordRepository
         }
 
         return [empty($where) ? '' : ' WHERE ' . implode(' AND ', $where), $params];
+    }
+
+    private function orderSql(array $filters): string
+    {
+        $sort = $this->normaliseSort($filters);
+        return ' ORDER BY ' . $this->sortableColumns[$sort['sort_by']] . ' ' . $sort['sort_order'];
+    }
+
+    private function normaliseSort(array $filters): array
+    {
+        $sortBy = sanitize_key($filters['sort_by'] ?? 'id');
+        $sortOrder = strtoupper(sanitize_key($filters['sort_order'] ?? 'DESC'));
+
+        if (!isset($this->sortableColumns[$sortBy])) {
+            $sortBy = 'id';
+        }
+
+        if (!in_array($sortOrder, ['ASC', 'DESC'], true)) {
+            $sortOrder = 'DESC';
+        }
+
+        return ['sort_by' => $sortBy, 'sort_order' => $sortOrder];
     }
 
     public function find(int $id): ?array
