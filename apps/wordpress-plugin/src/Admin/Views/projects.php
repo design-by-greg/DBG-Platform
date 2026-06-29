@@ -10,9 +10,7 @@ $projects = $repository->all();
     <h1>Projects</h1>
     <p>Project-first view for customer work, assets and orders.</p>
 
-    <?php if (isset($_GET['dbg_status']) && $_GET['dbg_status'] === 'created') : ?>
-        <div class="notice notice-success is-dismissible"><p>Project created.</p></div>
-    <?php endif; ?>
+    <?php include DBG_PLATFORM_PLUGIN_DIR . 'src/Admin/Views/notices.php'; ?>
 
     <div class="dbg-platform-panel">
         <h2>Create Project</h2>
