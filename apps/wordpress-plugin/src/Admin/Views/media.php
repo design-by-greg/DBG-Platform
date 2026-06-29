@@ -16,8 +16,13 @@ $filters = [
     'status' => sanitize_key($_GET['status'] ?? ''),
     'search' => sanitize_text_field($_GET['search'] ?? ''),
 ];
-$files = $fileRepository->search($filters, 100);
+$currentPage = max(1, absint($_GET['paged'] ?? 1));
+$perPage = max(10, min(100, absint($_GET['per_page'] ?? 25)));
+$result = $fileRepository->paginated($filters, $currentPage, $perPage);
+$files = $result['items'];
+$pagination = $result['pagination'];
 $folders = $folderRepository->all(['status' => 'active']);
+$basePageUrl = admin_url('admin.php?page=dbg-platform-media');
 ?>
 <div class="wrap dbg-platform-admin">
     <h1>Media</h1>
@@ -64,9 +69,7 @@ $folders = $folderRepository->all(['status' => 'active']);
                 <input type="file" name="files[]" multiple required>
             </div>
             <div class="dbg-upload-progress" data-dbg-upload-progress hidden>
-                <div class="dbg-upload-progress-track">
-                    <span class="dbg-upload-progress-bar" data-dbg-upload-progress-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span>
-                </div>
+                <div class="dbg-upload-progress-track"><span class="dbg-upload-progress-bar" data-dbg-upload-progress-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span></div>
                 <span class="dbg-upload-progress-text" data-dbg-upload-progress-text>Waiting...</span>
             </div>
             <p><button class="button button-primary">Upload files</button></p>
@@ -93,13 +96,19 @@ $folders = $folderRepository->all(['status' => 'active']);
                 <option value="active" <?php selected($filters['status'], 'active'); ?>>Active</option>
                 <option value="archived" <?php selected($filters['status'], 'archived'); ?>>Archived</option>
             </select>
+            <select name="per_page">
+                <?php foreach ([10, 25, 50, 100] as $option) : ?>
+                    <option value="<?php echo esc_attr($option); ?>" <?php selected($perPage, $option); ?>><?php echo esc_html($option); ?> / page</option>
+                <?php endforeach; ?>
+            </select>
             <button class="button button-primary">Filter</button>
-            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media')); ?>">Reset</a>
+            <a class="button" href="<?php echo esc_url($basePageUrl); ?>">Reset</a>
         </form>
     </div>
 
     <div class="dbg-platform-panel">
         <h2>File records</h2>
+        <p><?php echo esc_html($pagination['total']); ?> file(s) · page <?php echo esc_html($pagination['page']); ?> / <?php echo esc_html($pagination['total_pages']); ?></p>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <input type="hidden" name="action" value="dbg_bulk_media_action">
             <?php wp_nonce_field('dbg_bulk_media_action'); ?>
@@ -129,66 +138,35 @@ $folders = $folderRepository->all(['status' => 'active']);
                     <tr><td colspan="14">No file records found.</td></tr>
                 <?php else : ?>
                     <?php foreach ($files as $file) : ?>
-                        <?php
-                        $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file');
-                        $versions = $versionRepository->allForFile((int) $file['id']);
-                        ?>
+                        <?php $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file'); $versions = $versionRepository->allForFile((int) $file['id']); ?>
                         <tr>
                             <td><input class="dbg-file-select" type="checkbox" name="file_ids[]" value="<?php echo esc_attr($file['id']); ?>"></td>
                             <td><?php echo esc_html($file['id']); ?></td>
                             <td><?php echo wp_kses_post($previewService->render($file)); ?></td>
                             <td><?php echo esc_html($file['original_name']); ?></td>
-                            <td>
-                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                    <input type="hidden" name="action" value="dbg_rename_file">
-                                    <input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>">
-                                    <?php wp_nonce_field('dbg_rename_file'); ?>
-                                    <input type="text" name="original_name" value="<?php echo esc_attr($file['original_name']); ?>" size="18" required>
-                                    <button class="button">Rename</button>
-                                </form>
-                            </td>
+                            <td><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_rename_file"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_rename_file'); ?><input type="text" name="original_name" value="<?php echo esc_attr($file['original_name']); ?>" size="18" required><button class="button">Rename</button></form></td>
                             <td><?php echo esc_html($file['folder_id'] ?? '0'); ?></td>
                             <td><?php echo esc_html($file['mime_type']); ?></td>
                             <td><?php echo esc_html(size_format((int) $file['size'])); ?></td>
                             <td><?php echo esc_html($file['status']); ?></td>
                             <td><a class="button" href="<?php echo esc_url($downloadUrl); ?>">Download</a></td>
-                            <td>
-                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                    <input type="hidden" name="action" value="dbg_move_file_folder">
-                                    <input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>">
-                                    <?php wp_nonce_field('dbg_move_file_folder'); ?>
-                                    <select name="folder_id">
-                                        <option value="0">No folder</option>
-                                        <?php foreach ($folders as $folder) : ?>
-                                            <option value="<?php echo esc_attr($folder['id']); ?>" <?php selected((int) ($file['folder_id'] ?? 0), (int) $folder['id']); ?>><?php echo esc_html($folder['name']); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <button class="button">Move</button>
-                                </form>
-                            </td>
-                            <td>
-                                <?php if ($file['status'] !== 'archived') : ?>
-                                    <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                        <input type="hidden" name="action" value="dbg_upload_file_version">
-                                        <input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>">
-                                        <?php wp_nonce_field('dbg_upload_file_version'); ?>
-                                        <input type="file" name="file" required><input type="text" name="version_note" placeholder="Note" size="10"><button class="button">Add</button>
-                                    </form>
-                                <?php else : ?>—<?php endif; ?>
-                            </td>
+                            <td><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_move_file_folder"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_move_file_folder'); ?><select name="folder_id"><option value="0">No folder</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>" <?php selected((int) ($file['folder_id'] ?? 0), (int) $folder['id']); ?>><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select><button class="button">Move</button></form></td>
+                            <td><?php if ($file['status'] !== 'archived') : ?><form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_upload_file_version"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_upload_file_version'); ?><input type="file" name="file" required><input type="text" name="version_note" placeholder="Note" size="10"><button class="button">Add</button></form><?php else : ?>—<?php endif; ?></td>
                             <td><?php foreach ($versions as $version) : ?><div>v<?php echo esc_html($version['version_number']); ?></div><?php endforeach; ?></td>
-                            <td>
-                                <?php if ($file['status'] !== 'archived') : ?>
-                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                        <input type="hidden" name="action" value="dbg_archive_file"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_archive_file'); ?><button class="button">Archive</button>
-                                    </form>
-                                <?php else : ?>—<?php endif; ?>
-                            </td>
+                            <td><?php if ($file['status'] !== 'archived') : ?><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_archive_file"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_archive_file'); ?><button class="button">Archive</button></form><?php else : ?>—<?php endif; ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
                 </tbody>
             </table>
         </form>
+        <p>
+            <?php if ($pagination['page'] > 1) : ?>
+                <a class="button" href="<?php echo esc_url(add_query_arg(array_merge($_GET, ['paged' => $pagination['page'] - 1]), $basePageUrl)); ?>">Previous</a>
+            <?php endif; ?>
+            <?php if ($pagination['page'] < $pagination['total_pages']) : ?>
+                <a class="button" href="<?php echo esc_url(add_query_arg(array_merge($_GET, ['paged' => $pagination['page'] + 1]), $basePageUrl)); ?>">Next</a>
+            <?php endif; ?>
+        </p>
     </div>
 </div>
