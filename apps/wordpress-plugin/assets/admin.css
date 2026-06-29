@@ -27,3 +27,28 @@
 .dbg-platform-panel h2 {
     margin-top: 0;
 }
+
+.dbg-dropzone {
+    border: 2px dashed #8c8f94;
+    border-radius: 10px;
+    padding: 28px;
+    text-align: center;
+    background: #f6f7f7;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dbg-dropzone.is-dragover {
+    border-color: #2271b1;
+    background: #eef6fc;
+}
+
+.dbg-dropzone input[type="file"] {
+    display: none;
+}
+
+.dbg-dropzone strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 6px;
+}
