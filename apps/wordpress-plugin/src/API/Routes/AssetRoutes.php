@@ -4,6 +4,7 @@ namespace DBGPlatform\API\Routes;
 
 use DBGPlatform\API\ApiResponse;
 use DBGPlatform\API\ApiValidator;
+use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
@@ -13,11 +14,13 @@ class AssetRoutes
 {
     private AssetRepository $assets;
     private PermissionGate $gate;
+    private AuditLogger $audit;
 
     public function __construct()
     {
         $this->assets = new AssetRepository();
         $this->gate = new PermissionGate();
+        $this->audit = new AuditLogger();
     }
 
     public function register(): void
@@ -53,6 +56,7 @@ class AssetRoutes
             return $validation;
         }
         $id = $this->assets->create($payload);
+        $this->audit->record('created', 'asset', $id, $payload);
         return ApiResponse::created(['id' => $id, 'message' => 'Asset created']);
     }
 
@@ -64,12 +68,14 @@ class AssetRoutes
             return $validation;
         }
         $updated = $this->assets->update((int) $request['id'], $payload);
+        $this->audit->record('updated', 'asset', (int) $request['id'], $payload);
         return ApiResponse::ok(['updated' => $updated]);
     }
 
     public function deleteAsset(WP_REST_Request $request): WP_REST_Response
     {
         $deleted = $this->assets->delete((int) $request['id']);
+        $this->audit->record('archived', 'asset', (int) $request['id']);
         return ApiResponse::ok(['archived' => $deleted]);
     }
 
