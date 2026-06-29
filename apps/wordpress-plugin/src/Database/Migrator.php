@@ -17,7 +17,7 @@ class Migrator
             dbDelta($sql);
         }
 
-        update_option('dbg_platform_db_version', '0.1.0');
+        update_option('dbg_platform_db_version', '0.1.1');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -62,6 +62,22 @@ class Migrator
                 KEY project_id (project_id),
                 KEY type (type),
                 KEY status (status)
+            ) {$charset};",
+
+            "CREATE TABLE {$prefix}audit_logs (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                actor_id BIGINT UNSIGNED NULL,
+                action VARCHAR(128) NOT NULL,
+                entity_type VARCHAR(128) NOT NULL,
+                entity_id BIGINT UNSIGNED NULL,
+                payload LONGTEXT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY actor_id (actor_id),
+                KEY entity_type (entity_type),
+                KEY entity_id (entity_id),
+                KEY action (action),
+                KEY created_at (created_at)
             ) {$charset};"
         ];
     }
