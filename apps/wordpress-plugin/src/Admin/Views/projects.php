@@ -27,10 +27,10 @@ $projects = $repository->all();
     <div class="dbg-platform-panel">
         <h2>Existing Projects</h2>
         <table class="widefat striped">
-            <thead><tr><th>ID</th><th>Organisation</th><th>Name</th><th>Status</th></tr></thead>
+            <thead><tr><th>ID</th><th>Organisation</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
             <?php if (empty($projects)) : ?>
-                <tr><td colspan="4">No Projects found.</td></tr>
+                <tr><td colspan="5">No Projects found.</td></tr>
             <?php else : ?>
                 <?php foreach ($projects as $project) : ?>
                     <tr>
@@ -38,6 +38,14 @@ $projects = $repository->all();
                         <td><?php echo esc_html($project['organisation_id']); ?></td>
                         <td><?php echo esc_html($project['name']); ?></td>
                         <td><?php echo esc_html($project['status']); ?></td>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <input type="hidden" name="action" value="dbg_delete_project">
+                                <input type="hidden" name="dbg_id" value="<?php echo esc_attr($project['id']); ?>">
+                                <?php wp_nonce_field('dbg_delete_project'); ?>
+                                <button class="button">Archive</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
