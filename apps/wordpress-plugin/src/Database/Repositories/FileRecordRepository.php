@@ -11,10 +11,41 @@ class FileRecordRepository
 
     public function search(array $filters = [], int $limit = 100): array
     {
+        return $this->paginated($filters, 1, $limit)['items'];
+    }
+
+    public function paginated(array $filters = [], int $page = 1, int $perPage = 25): array
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'dbg_file_records';
-        $limit = max(1, min(500, absint($limit)));
+        $page = max(1, absint($page));
+        $perPage = max(1, min(100, absint($perPage)));
+        $offset = ($page - 1) * $perPage;
 
+        [$whereSql, $params] = $this->whereSql($filters);
+
+        $countSql = "SELECT COUNT(*) FROM {$table}" . $whereSql;
+        $total = !empty($params)
+            ? (int) $wpdb->get_var($wpdb->prepare($countSql, $params))
+            : (int) $wpdb->get_var($countSql);
+
+        $sql = "SELECT * FROM {$table}" . $whereSql . ' ORDER BY id DESC LIMIT %d OFFSET %d';
+        $queryParams = array_merge($params, [$perPage, $offset]);
+
+        return [
+            'items' => $wpdb->get_results($wpdb->prepare($sql, $queryParams), ARRAY_A) ?: [],
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => max(1, (int) ceil($total / $perPage)),
+            ],
+        ];
+    }
+
+    private function whereSql(array $filters): array
+    {
+        global $wpdb;
         $where = [];
         $params = [];
 
@@ -55,16 +86,7 @@ class FileRecordRepository
             $params[] = $term;
         }
 
-        $sql = "SELECT * FROM {$table}";
-
-        if (!empty($where)) {
-            $sql .= ' WHERE ' . implode(' AND ', $where);
-        }
-
-        $sql .= ' ORDER BY id DESC LIMIT %d';
-        $params[] = $limit;
-
-        return $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A) ?: [];
+        return [empty($where) ? '' : ' WHERE ' . implode(' AND ', $where), $params];
     }
 
     public function find(int $id): ?array
