@@ -10,15 +10,20 @@ $assets = $repository->all();
     <h1>Assets</h1>
     <p>Manage reusable assets owned by Organisations.</p>
 
+    <?php if (isset($_GET['dbg_status']) && $_GET['dbg_status'] === 'created') : ?>
+        <div class="notice notice-success is-dismissible"><p>Asset created.</p></div>
+    <?php endif; ?>
+
     <div class="dbg-platform-panel">
         <h2>Create Asset</h2>
-        <form method="post" action="">
-            <p><input type="number" name="dbg_asset_organisation_id" placeholder="Organisation ID" class="regular-text"></p>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="dbg_create_asset">
+            <?php wp_nonce_field('dbg_create_asset'); ?>
+            <p><input type="number" name="dbg_asset_organisation_id" placeholder="Organisation ID" class="regular-text" required></p>
             <p><input type="number" name="dbg_asset_project_id" placeholder="Project ID optional" class="regular-text"></p>
-            <p><input type="text" name="dbg_asset_type" placeholder="logo, product, bat, document" class="regular-text"></p>
-            <p><input type="text" name="dbg_asset_name" placeholder="Asset name" class="regular-text"></p>
-            <p><button class="button button-primary" disabled>Create Asset</button></p>
-            <p class="description">Form UI ready. Submission handler will be added in next sprint.</p>
+            <p><input type="text" name="dbg_asset_type" placeholder="logo, product, bat, document" class="regular-text" required></p>
+            <p><input type="text" name="dbg_asset_name" placeholder="Asset name" class="regular-text" required></p>
+            <p><button class="button button-primary">Create Asset</button></p>
         </form>
     </div>
 
