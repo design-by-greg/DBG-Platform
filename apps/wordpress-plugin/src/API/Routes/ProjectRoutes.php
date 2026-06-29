@@ -4,6 +4,7 @@ namespace DBGPlatform\API\Routes;
 
 use DBGPlatform\API\ApiResponse;
 use DBGPlatform\API\ApiValidator;
+use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\ProjectRepository;
 use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
@@ -13,11 +14,13 @@ class ProjectRoutes
 {
     private ProjectRepository $projects;
     private PermissionGate $gate;
+    private AuditLogger $audit;
 
     public function __construct()
     {
         $this->projects = new ProjectRepository();
         $this->gate = new PermissionGate();
+        $this->audit = new AuditLogger();
     }
 
     public function register(): void
@@ -53,6 +56,7 @@ class ProjectRoutes
             return $validation;
         }
         $id = $this->projects->create($payload);
+        $this->audit->record('created', 'project', $id, $payload);
         return ApiResponse::created(['id' => $id, 'message' => 'Project created']);
     }
 
@@ -64,12 +68,14 @@ class ProjectRoutes
             return $validation;
         }
         $updated = $this->projects->update((int) $request['id'], $payload);
+        $this->audit->record('updated', 'project', (int) $request['id'], $payload);
         return ApiResponse::ok(['updated' => $updated]);
     }
 
     public function deleteProject(WP_REST_Request $request): WP_REST_Response
     {
         $deleted = $this->projects->delete((int) $request['id']);
+        $this->audit->record('archived', 'project', (int) $request['id']);
         return ApiResponse::ok(['archived' => $deleted]);
     }
 
