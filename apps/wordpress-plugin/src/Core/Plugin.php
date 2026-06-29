@@ -4,6 +4,7 @@ namespace DBGPlatform\Core;
 
 use DBGPlatform\API\RestServiceProvider;
 use DBGPlatform\Admin\AdminServiceProvider;
+use DBGPlatform\Database\DatabaseServiceProvider;
 use DBGPlatform\Integrations\WooCommerce\WooCommerceServiceProvider;
 
 class Plugin
@@ -15,6 +16,7 @@ class Plugin
 
     private function registerProviders(): void
     {
+        (new DatabaseServiceProvider())->register();
         (new RestServiceProvider())->register();
         (new AdminServiceProvider())->register();
         (new WooCommerceServiceProvider())->register();
