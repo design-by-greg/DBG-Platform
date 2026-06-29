@@ -34,6 +34,10 @@ class FileRoutes
             ['methods' => 'POST', 'callback' => [$this, 'uploadFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
         ]);
 
+        register_rest_route('dbg/v1', '/files/bulk', [
+            ['methods' => 'PATCH', 'callback' => [$this, 'bulkAction'], 'permission_callback' => [$this->gate, 'canEditPosts']],
+        ]);
+
         register_rest_route('dbg/v1', '/files/(?P<id>\d+)', [
             ['methods' => 'GET', 'callback' => [$this, 'getFile'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'PATCH', 'callback' => [$this, 'updateFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
@@ -92,6 +96,37 @@ class FileRoutes
 
         $this->audit->record('updated', 'file', $fileId, ['updated' => $updated, 'changes' => $changes]);
         return ApiResponse::ok(['updated' => $updated, 'changes' => $changes]);
+    }
+
+    public function bulkAction(WP_REST_Request $request): WP_REST_Response
+    {
+        $payload = $request->get_json_params() ?: [];
+        $ids = array_values(array_filter(array_map('absint', (array) ($payload['ids'] ?? []))));
+        $action = sanitize_key($payload['action'] ?? '');
+
+        if (empty($ids)) {
+            return ApiResponse::validation(['ids are required.']);
+        }
+
+        $repository = new FileRecordRepository();
+        $count = 0;
+
+        if ($action === 'archive') {
+            $count = $repository->bulkArchive($ids);
+        } elseif ($action === 'move') {
+            $folderId = absint($payload['folder_id'] ?? 0);
+            $count = $repository->bulkMoveToFolder($ids, $folderId);
+        } else {
+            return ApiResponse::validation(['Unsupported bulk action.']);
+        }
+
+        $this->audit->record('bulk_' . $action, 'file', null, [
+            'ids' => $ids,
+            'count' => $count,
+            'folder_id' => absint($payload['folder_id'] ?? 0),
+        ]);
+
+        return ApiResponse::ok(['action' => $action, 'count' => $count, 'ids' => $ids]);
     }
 
     public function archiveFile(WP_REST_Request $request): WP_REST_Response
