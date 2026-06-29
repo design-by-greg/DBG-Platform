@@ -26,6 +26,7 @@ class AdminServiceProvider
         add_submenu_page('dbg-platform', 'Organisations', 'Organisations', 'manage_options', 'dbg-platform-organisations', [$this, 'renderOrganisations']);
         add_submenu_page('dbg-platform', 'Projects', 'Projects', 'manage_options', 'dbg-platform-projects', [$this, 'renderProjects']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
+        add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
         add_submenu_page('dbg-platform', 'Audit Logs', 'Audit Logs', 'manage_options', 'dbg-platform-audit-logs', [$this, 'renderAuditLogs']);
         add_submenu_page('dbg-platform', 'Settings', 'Settings', 'manage_options', 'dbg-platform-settings', [$this, 'renderSettings']);
     }
@@ -57,6 +58,11 @@ class AdminServiceProvider
     public function renderAssets(): void
     {
         $this->view('assets');
+    }
+
+    public function renderMedia(): void
+    {
+        $this->view('media');
     }
 
     public function renderAuditLogs(): void
