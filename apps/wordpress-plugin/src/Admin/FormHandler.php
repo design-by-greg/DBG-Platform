@@ -8,6 +8,7 @@ use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Database\Repositories\OrganisationRepository;
 use DBGPlatform\Database\Repositories\ProjectRepository;
 use DBGPlatform\Files\FileUploadService;
+use DBGPlatform\Files\SecureDownloadService;
 use DBGPlatform\Settings\SettingsRepository;
 
 class FormHandler
@@ -26,6 +27,7 @@ class FormHandler
         add_action('admin_post_dbg_update_settings', [$this, 'updateSettings']);
         add_action('admin_post_dbg_upload_media', [$this, 'uploadMedia']);
         add_action('admin_post_dbg_archive_file', [$this, 'archiveFile']);
+        add_action('admin_post_dbg_download_file', [$this, 'downloadFile']);
     }
 
     public function createOrganisation(): void
@@ -167,6 +169,14 @@ class FormHandler
         (new AuditLogger())->record('archived', 'file', $fileId, ['archived' => $archived]);
 
         $this->redirect('dbg-platform-media', 'deleted');
+    }
+
+    public function downloadFile(): void
+    {
+        $this->guard('dbg_download_file');
+        $fileId = absint($_GET['file_id'] ?? $_POST['file_id'] ?? 0);
+        (new AuditLogger())->record('downloaded', 'file', $fileId, []);
+        (new SecureDownloadService())->download($fileId);
     }
 
     private function validateOrganisation(): void
