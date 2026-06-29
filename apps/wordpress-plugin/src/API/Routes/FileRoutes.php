@@ -27,29 +27,14 @@ class FileRoutes
     public function register(): void
     {
         register_rest_route('dbg/v1', '/files', [
-            [
-                'methods' => 'GET',
-                'callback' => [$this, 'listFiles'],
-                'permission_callback' => [$this->gate, 'canRead'],
-            ],
-            [
-                'methods' => 'POST',
-                'callback' => [$this, 'uploadFile'],
-                'permission_callback' => [$this->gate, 'canEditPosts'],
-            ],
+            ['methods' => 'GET', 'callback' => [$this, 'listFiles'], 'permission_callback' => [$this->gate, 'canRead']],
+            ['methods' => 'POST', 'callback' => [$this, 'uploadFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
         ]);
 
         register_rest_route('dbg/v1', '/files/(?P<id>\d+)', [
-            [
-                'methods' => 'GET',
-                'callback' => [$this, 'getFile'],
-                'permission_callback' => [$this->gate, 'canRead'],
-            ],
-            [
-                'methods' => 'DELETE',
-                'callback' => [$this, 'archiveFile'],
-                'permission_callback' => [$this->gate, 'canEditPosts'],
-            ],
+            ['methods' => 'GET', 'callback' => [$this, 'getFile'], 'permission_callback' => [$this->gate, 'canRead']],
+            ['methods' => 'PATCH', 'callback' => [$this, 'updateFileFolder'], 'permission_callback' => [$this->gate, 'canEditPosts']],
+            ['methods' => 'DELETE', 'callback' => [$this, 'archiveFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
         ]);
     }
 
@@ -58,6 +43,7 @@ class FileRoutes
         $filters = [
             'organisation_id' => absint($request->get_param('organisation_id')),
             'project_id' => absint($request->get_param('project_id')),
+            'folder_id' => absint($request->get_param('folder_id')),
             'asset_id' => absint($request->get_param('asset_id')),
             'mime_type' => sanitize_text_field($request->get_param('mime_type') ?? ''),
             'status' => sanitize_key($request->get_param('status') ?? ''),
@@ -76,6 +62,16 @@ class FileRoutes
     {
         $file = (new FileRecordRepository())->find((int) $request['id']);
         return $file ? ApiResponse::ok(['data' => $file]) : ApiResponse::notFound('File not found');
+    }
+
+    public function updateFileFolder(WP_REST_Request $request): WP_REST_Response
+    {
+        $payload = $request->get_json_params() ?: [];
+        $folderId = absint($payload['folder_id'] ?? $request->get_param('folder_id'));
+        $fileId = (int) $request['id'];
+        $updated = (new FileRecordRepository())->moveToFolder($fileId, $folderId);
+        $this->audit->record('moved', 'file', $fileId, ['folder_id' => $folderId, 'updated' => $updated]);
+        return ApiResponse::ok(['updated' => $updated, 'folder_id' => $folderId]);
     }
 
     public function archiveFile(WP_REST_Request $request): WP_REST_Response
@@ -117,6 +113,7 @@ class FileRoutes
         ]);
 
         $result['asset_id'] = $assetId;
+        $result['folder_id'] = absint($request->get_param('folder_id'));
         $result['file_record_id'] = (new FileRecordRepository())->create($result);
 
         $this->audit->record('uploaded', 'file', $result['file_record_id'], $result);
