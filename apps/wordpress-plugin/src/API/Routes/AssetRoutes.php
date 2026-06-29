@@ -3,16 +3,19 @@
 namespace DBGPlatform\API\Routes;
 
 use DBGPlatform\Database\Repositories\AssetRepository;
+use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
 use WP_REST_Response;
 
 class AssetRoutes
 {
     private AssetRepository $assets;
+    private PermissionGate $gate;
 
     public function __construct()
     {
         $this->assets = new AssetRepository();
+        $this->gate = new PermissionGate();
     }
 
     public function register(): void
@@ -21,12 +24,12 @@ class AssetRoutes
             [
                 'methods' => 'GET',
                 'callback' => [$this, 'listAssets'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this->gate, 'canRead'],
             ],
             [
                 'methods' => 'POST',
                 'callback' => [$this, 'createAsset'],
-                'permission_callback' => '__return_true',
+                'permission_callback' => [$this->gate, 'canEditPosts'],
             ],
         ]);
     }
