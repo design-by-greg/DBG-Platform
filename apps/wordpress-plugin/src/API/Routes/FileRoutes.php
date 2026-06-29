@@ -55,7 +55,21 @@ class FileRoutes
 
     public function listFiles(WP_REST_Request $request): WP_REST_Response
     {
-        return ApiResponse::ok(['data' => (new FileRecordRepository())->all(100)]);
+        $filters = [
+            'organisation_id' => absint($request->get_param('organisation_id')),
+            'project_id' => absint($request->get_param('project_id')),
+            'asset_id' => absint($request->get_param('asset_id')),
+            'mime_type' => sanitize_text_field($request->get_param('mime_type') ?? ''),
+            'status' => sanitize_key($request->get_param('status') ?? ''),
+            'search' => sanitize_text_field($request->get_param('search') ?? ''),
+        ];
+
+        $limit = absint($request->get_param('limit') ?? 100);
+
+        return ApiResponse::ok([
+            'data' => (new FileRecordRepository())->search($filters, $limit),
+            'filters' => $filters,
+        ]);
     }
 
     public function getFile(WP_REST_Request $request): WP_REST_Response
