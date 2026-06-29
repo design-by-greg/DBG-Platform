@@ -2,6 +2,8 @@
 
 namespace DBGPlatform\API\Routes;
 
+use DBGPlatform\API\ApiResponse;
+use DBGPlatform\API\ApiValidator;
 use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
@@ -21,63 +23,63 @@ class AssetRoutes
     public function register(): void
     {
         register_rest_route('dbg/v1', '/assets', [
-            [
-                'methods' => 'GET',
-                'callback' => [$this, 'listAssets'],
-                'permission_callback' => [$this->gate, 'canRead'],
-            ],
-            [
-                'methods' => 'POST',
-                'callback' => [$this, 'createAsset'],
-                'permission_callback' => [$this->gate, 'canEditPosts'],
-            ],
+            ['methods' => 'GET', 'callback' => [$this, 'listAssets'], 'permission_callback' => [$this->gate, 'canRead']],
+            ['methods' => 'POST', 'callback' => [$this, 'createAsset'], 'permission_callback' => [$this->gate, 'canEditPosts']],
         ]);
 
         register_rest_route('dbg/v1', '/assets/(?P<id>\d+)', [
-            [
-                'methods' => 'GET',
-                'callback' => [$this, 'getAsset'],
-                'permission_callback' => [$this->gate, 'canRead'],
-            ],
-            [
-                'methods' => 'PATCH',
-                'callback' => [$this, 'updateAsset'],
-                'permission_callback' => [$this->gate, 'canEditPosts'],
-            ],
-            [
-                'methods' => 'DELETE',
-                'callback' => [$this, 'deleteAsset'],
-                'permission_callback' => [$this->gate, 'canEditPosts'],
-            ],
+            ['methods' => 'GET', 'callback' => [$this, 'getAsset'], 'permission_callback' => [$this->gate, 'canRead']],
+            ['methods' => 'PATCH', 'callback' => [$this, 'updateAsset'], 'permission_callback' => [$this->gate, 'canEditPosts']],
+            ['methods' => 'DELETE', 'callback' => [$this, 'deleteAsset'], 'permission_callback' => [$this->gate, 'canEditPosts']],
         ]);
     }
 
     public function listAssets(WP_REST_Request $request): WP_REST_Response
     {
-        return new WP_REST_Response(['data' => $this->assets->all()], 200);
+        return ApiResponse::ok(['data' => $this->assets->all()]);
     }
 
     public function getAsset(WP_REST_Request $request): WP_REST_Response
     {
         $item = $this->assets->find((int) $request['id']);
-        return $item ? new WP_REST_Response(['data' => $item], 200) : new WP_REST_Response(['message' => 'Asset not found'], 404);
+        return $item ? ApiResponse::ok(['data' => $item]) : ApiResponse::notFound('Asset not found');
     }
 
     public function createAsset(WP_REST_Request $request): WP_REST_Response
     {
-        $id = $this->assets->create($request->get_json_params() ?: []);
-        return new WP_REST_Response(['id' => $id, 'message' => 'Asset created'], 201);
+        $payload = $request->get_json_params() ?: [];
+        $validation = $this->validatePayload($payload);
+        if ($validation instanceof WP_REST_Response) {
+            return $validation;
+        }
+        $id = $this->assets->create($payload);
+        return ApiResponse::created(['id' => $id, 'message' => 'Asset created']);
     }
 
     public function updateAsset(WP_REST_Request $request): WP_REST_Response
     {
-        $updated = $this->assets->update((int) $request['id'], $request->get_json_params() ?: []);
-        return new WP_REST_Response(['updated' => $updated], 200);
+        $payload = $request->get_json_params() ?: [];
+        $validation = $this->validatePayload($payload);
+        if ($validation instanceof WP_REST_Response) {
+            return $validation;
+        }
+        $updated = $this->assets->update((int) $request['id'], $payload);
+        return ApiResponse::ok(['updated' => $updated]);
     }
 
     public function deleteAsset(WP_REST_Request $request): WP_REST_Response
     {
         $deleted = $this->assets->delete((int) $request['id']);
-        return new WP_REST_Response(['archived' => $deleted], 200);
+        return ApiResponse::ok(['archived' => $deleted]);
+    }
+
+    private function validatePayload(array $payload): ?WP_REST_Response
+    {
+        $validator = (new ApiValidator())
+            ->positiveInt('organisation_id', 'Organisation ID', $payload)
+            ->allowedValue('type', 'Asset type', ['logo', 'product', 'bat', 'document', 'image', 'template'], $payload)
+            ->required('name', 'Asset name', $payload);
+
+        return $validator->passes() ? null : ApiResponse::validation($validator->errors());
     }
 }
