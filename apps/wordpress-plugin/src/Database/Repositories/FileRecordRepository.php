@@ -94,6 +94,23 @@ class FileRecordRepository
         return (int) $wpdb->insert_id;
     }
 
+    public function replace(int $id, array $data): bool
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_file_records';
+
+        return false !== $wpdb->update($table, [
+            'original_name' => sanitize_file_name($data['original_name'] ?? ''),
+            'filename' => sanitize_file_name($data['filename'] ?? ''),
+            'mime_type' => sanitize_text_field($data['mime_type'] ?? ''),
+            'size' => absint($data['size'] ?? 0),
+            'path' => sanitize_text_field($data['path'] ?? ''),
+            'url' => esc_url_raw($data['url'] ?? ''),
+            'status' => 'active',
+            'updated_at' => current_time('mysql'),
+        ], ['id' => $id]);
+    }
+
     public function archive(int $id): bool
     {
         global $wpdb;
