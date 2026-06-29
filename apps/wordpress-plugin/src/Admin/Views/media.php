@@ -58,8 +58,11 @@ $folders = $folderRepository->all(['status' => 'active']);
                     <?php endforeach; ?>
                 </select>
             </p>
-            <p><input type="file" name="files[]" multiple required></p>
-            <p class="description">Multiple files accepted. PDF, PNG, JPG, SVG, ZIP, EPS, AI. Max size: 50 MB per file.</p>
+            <div class="dbg-dropzone" data-dbg-dropzone>
+                <strong data-dbg-dropzone-label>Drop files here or click to select</strong>
+                <span>PDF, PNG, JPG, SVG, ZIP, EPS, AI — max 50 MB per file</span>
+                <input type="file" name="files[]" multiple required>
+            </div>
             <p><button class="button button-primary">Upload files</button></p>
         </form>
     </div>
