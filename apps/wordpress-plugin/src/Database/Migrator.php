@@ -1,0 +1,68 @@
+<?php
+
+namespace DBGPlatform\Database;
+
+class Migrator
+{
+    public function run(): void
+    {
+        global $wpdb;
+
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+        $charset = $wpdb->get_charset_collate();
+        $prefix = $wpdb->prefix . 'dbg_';
+
+        foreach ($this->tables($prefix, $charset) as $sql) {
+            dbDelta($sql);
+        }
+
+        update_option('dbg_platform_db_version', '0.1.0');
+    }
+
+    private function tables(string $prefix, string $charset): array
+    {
+        return [
+            "CREATE TABLE {$prefix}organisations (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL,
+                type VARCHAR(64) NOT NULL,
+                status VARCHAR(64) NOT NULL DEFAULT 'active',
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY type (type),
+                KEY status (status)
+            ) {$charset};",
+
+            "CREATE TABLE {$prefix}projects (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                organisation_id BIGINT UNSIGNED NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                description TEXT NULL,
+                status VARCHAR(64) NOT NULL DEFAULT 'draft',
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY organisation_id (organisation_id),
+                KEY status (status)
+            ) {$charset};",
+
+            "CREATE TABLE {$prefix}assets (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                organisation_id BIGINT UNSIGNED NOT NULL,
+                project_id BIGINT UNSIGNED NULL,
+                type VARCHAR(64) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                status VARCHAR(64) NOT NULL DEFAULT 'draft',
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY organisation_id (organisation_id),
+                KEY project_id (project_id),
+                KEY type (type),
+                KEY status (status)
+            ) {$charset};"
+        ];
+    }
+}
