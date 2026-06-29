@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant User
+    participant Project
+    participant Asset
+    participant Commerce
+    participant Workflow
+    participant Production
+    participant Base44
+
+    User->>Project: Create or open project
+    User->>Asset: Select or upload asset
+    User->>Commerce: Request quote
+    Commerce->>Workflow: Emit quote requested
+    User->>Commerce: Create order
+    Commerce->>Workflow: Emit order created
+    Workflow->>Asset: Request BAT validation if required
+    User->>Workflow: Validate BAT
+    Workflow->>Production: Create production job
+    Production->>Base44: Sync internal task
+    Production->>Workflow: Emit production completed
