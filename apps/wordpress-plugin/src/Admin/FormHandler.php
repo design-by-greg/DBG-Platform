@@ -4,6 +4,7 @@ namespace DBGPlatform\Admin;
 
 use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
+use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Database\Repositories\OrganisationRepository;
 use DBGPlatform\Database\Repositories\ProjectRepository;
 use DBGPlatform\Files\FileUploadService;
@@ -144,7 +145,9 @@ class FormHandler
         ]);
 
         $result['asset_id'] = $assetId;
-        (new AuditLogger())->record('uploaded', 'file', $assetId, $result);
+        $result['file_record_id'] = (new FileRecordRepository())->create($result);
+
+        (new AuditLogger())->record('uploaded', 'file', $result['file_record_id'], $result);
 
         $this->redirect('dbg-platform-media', 'uploaded');
     }
