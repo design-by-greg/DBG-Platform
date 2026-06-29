@@ -21,7 +21,7 @@ $folders = $folderRepository->all(['status' => 'active']);
 ?>
 <div class="wrap dbg-platform-admin">
     <h1>Media</h1>
-    <p>Upload, filter, folder, version and review files linked to DBG Platform assets.</p>
+    <p>Upload, filter, rename, folder, version and review files linked to DBG Platform assets.</p>
 
     <?php include DBG_PLATFORM_PLUGIN_DIR . 'src/Admin/Views/notices.php'; ?>
 
@@ -97,12 +97,12 @@ $folders = $folderRepository->all(['status' => 'active']);
         <table class="widefat striped">
             <thead>
                 <tr>
-                    <th>ID</th><th>Preview</th><th>Folder</th><th>Name</th><th>Type</th><th>Size</th><th>Status</th><th>Download</th><th>Move</th><th>New version</th><th>Versions</th><th>Archive</th>
+                    <th>ID</th><th>Preview</th><th>Name</th><th>Rename</th><th>Folder</th><th>Type</th><th>Size</th><th>Status</th><th>Download</th><th>Move</th><th>New version</th><th>Versions</th><th>Archive</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($files)) : ?>
-                <tr><td colspan="12">No file records found.</td></tr>
+                <tr><td colspan="13">No file records found.</td></tr>
             <?php else : ?>
                 <?php foreach ($files as $file) : ?>
                     <?php
@@ -112,8 +112,17 @@ $folders = $folderRepository->all(['status' => 'active']);
                     <tr>
                         <td><?php echo esc_html($file['id']); ?></td>
                         <td><?php echo wp_kses_post($previewService->render($file)); ?></td>
-                        <td><?php echo esc_html($file['folder_id'] ?? '0'); ?></td>
                         <td><?php echo esc_html($file['original_name']); ?></td>
+                        <td>
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                <input type="hidden" name="action" value="dbg_rename_file">
+                                <input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>">
+                                <?php wp_nonce_field('dbg_rename_file'); ?>
+                                <input type="text" name="original_name" value="<?php echo esc_attr($file['original_name']); ?>" size="18" required>
+                                <button class="button">Rename</button>
+                            </form>
+                        </td>
+                        <td><?php echo esc_html($file['folder_id'] ?? '0'); ?></td>
                         <td><?php echo esc_html($file['mime_type']); ?></td>
                         <td><?php echo esc_html(size_format((int) $file['size'])); ?></td>
                         <td><?php echo esc_html($file['status']); ?></td>
