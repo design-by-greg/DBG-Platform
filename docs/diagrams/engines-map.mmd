@@ -1,0 +1,20 @@
+flowchart TD
+    I[Identity Engine]
+    P[Project Engine]
+    A[Asset Engine]
+    C[Commerce Engine]
+    W[Workflow Engine]
+    PR[Production Engine]
+    AN[Analytics Engine]
+
+    I --> W
+    P --> W
+    A --> W
+    C --> W
+    W --> PR
+    W --> AN
+
+    WP[WordPress Interface] --> C
+    WC[WooCommerce] --> C
+    B44[Base44 Operations] --> W
+    B44 --> PR
