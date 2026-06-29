@@ -7,6 +7,7 @@ use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Files\FileUploadService;
+use DBGPlatform\Files\ThumbnailService;
 use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -16,12 +17,14 @@ class FileRoutes
     private PermissionGate $gate;
     private FileUploadService $uploads;
     private AuditLogger $audit;
+    private ThumbnailService $thumbnails;
 
     public function __construct()
     {
         $this->gate = new PermissionGate();
         $this->uploads = new FileUploadService();
         $this->audit = new AuditLogger();
+        $this->thumbnails = new ThumbnailService();
     }
 
     public function register(): void
@@ -108,6 +111,12 @@ class FileRoutes
             if (empty($result['success'])) {
                 $errors[] = $result['message'] ?? 'Upload failed.';
                 continue;
+            }
+
+            $thumbnail = $this->thumbnails->generate($result);
+            if (!empty($thumbnail['success'])) {
+                $result['thumbnail_path'] = $thumbnail['thumbnail_path'];
+                $result['thumbnail_url'] = $thumbnail['thumbnail_url'];
             }
 
             $assetId = (new AssetRepository())->create([
