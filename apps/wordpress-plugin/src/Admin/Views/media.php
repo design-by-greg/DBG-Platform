@@ -5,11 +5,19 @@ if (!defined('ABSPATH')) {
 
 $fileRepository = new \DBGPlatform\Database\Repositories\FileRecordRepository();
 $previewService = new \DBGPlatform\Files\FilePreviewService();
-$files = $fileRepository->all(100);
+$filters = [
+    'organisation_id' => absint($_GET['organisation_id'] ?? 0),
+    'project_id' => absint($_GET['project_id'] ?? 0),
+    'asset_id' => absint($_GET['asset_id'] ?? 0),
+    'mime_type' => sanitize_text_field($_GET['mime_type'] ?? ''),
+    'status' => sanitize_key($_GET['status'] ?? ''),
+    'search' => sanitize_text_field($_GET['search'] ?? ''),
+];
+$files = $fileRepository->search($filters, 100);
 ?>
 <div class="wrap dbg-platform-admin">
     <h1>Media</h1>
-    <p>Upload and review files linked to DBG Platform assets.</p>
+    <p>Upload, filter and review files linked to DBG Platform assets.</p>
 
     <?php include DBG_PLATFORM_PLUGIN_DIR . 'src/Admin/Views/notices.php'; ?>
 
@@ -23,6 +31,25 @@ $files = $fileRepository->all(100);
             <p><input type="file" name="file" required></p>
             <p class="description">Accepted: PDF, PNG, JPG, SVG, ZIP, EPS, AI. Max size: 50 MB.</p>
             <p><button class="button button-primary">Upload file</button></p>
+        </form>
+    </div>
+
+    <div class="dbg-platform-panel">
+        <h2>Search files</h2>
+        <form method="get">
+            <input type="hidden" name="page" value="dbg-platform-media">
+            <input type="search" name="search" placeholder="Search filename" value="<?php echo esc_attr($filters['search']); ?>">
+            <input type="number" name="organisation_id" placeholder="Organisation ID" value="<?php echo esc_attr($filters['organisation_id'] ?: ''); ?>">
+            <input type="number" name="project_id" placeholder="Project ID" value="<?php echo esc_attr($filters['project_id'] ?: ''); ?>">
+            <input type="number" name="asset_id" placeholder="Asset ID" value="<?php echo esc_attr($filters['asset_id'] ?: ''); ?>">
+            <input type="text" name="mime_type" placeholder="MIME type" value="<?php echo esc_attr($filters['mime_type']); ?>">
+            <select name="status">
+                <option value="">All status</option>
+                <option value="active" <?php selected($filters['status'], 'active'); ?>>Active</option>
+                <option value="archived" <?php selected($filters['status'], 'archived'); ?>>Archived</option>
+            </select>
+            <button class="button button-primary">Filter</button>
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media')); ?>">Reset</a>
         </form>
     </div>
 
