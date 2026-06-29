@@ -8,6 +8,7 @@ class AdminServiceProvider
     {
         add_action('admin_menu', [$this, 'registerMenu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
+        (new MediaAjaxUploadHandler())->register();
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
         (new MediaBulkActionHandler())->register();
@@ -44,6 +45,10 @@ class AdminServiceProvider
 
         if (strpos($hook, 'dbg-platform-media') !== false) {
             wp_enqueue_script('dbg-platform-admin-media', DBG_PLATFORM_PLUGIN_URL . 'assets/admin-media.js', [], DBG_PLATFORM_VERSION, true);
+            wp_localize_script('dbg-platform-admin-media', 'DBGPlatformMedia', [
+                'ajaxUrl' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('dbg_ajax_upload_media'),
+            ]);
         }
     }
 
