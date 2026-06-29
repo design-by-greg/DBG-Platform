@@ -1,0 +1,29 @@
+.dbg-platform-admin {
+    max-width: 1200px;
+}
+
+.dbg-platform-lead {
+    font-size: 16px;
+    color: #555;
+}
+
+.dbg-platform-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.dbg-platform-card,
+.dbg-platform-panel {
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    padding: 18px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.dbg-platform-card h2,
+.dbg-platform-panel h2 {
+    margin-top: 0;
+}
