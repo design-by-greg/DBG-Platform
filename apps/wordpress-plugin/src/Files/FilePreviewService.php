@@ -31,6 +31,7 @@ class FilePreviewService
     {
         $type = $this->previewType($file);
         $url = esc_url((string) ($file['url'] ?? ''));
+        $thumbnailUrl = esc_url((string) ($file['thumbnail_url'] ?? ''));
         $name = esc_html((string) ($file['original_name'] ?? 'File'));
 
         if ($url === '') {
@@ -38,7 +39,8 @@ class FilePreviewService
         }
 
         if ($type === 'image') {
-            return '<a href="' . $url . '" target="_blank" rel="noopener"><img src="' . $url . '" alt="' . $name . '" style="max-width:90px;max-height:60px;object-fit:contain;background:#fff;border:1px solid #ddd;padding:2px;"></a>';
+            $previewUrl = $thumbnailUrl !== '' ? $thumbnailUrl : $url;
+            return '<a href="' . $url . '" target="_blank" rel="noopener"><img src="' . $previewUrl . '" alt="' . $name . '" style="max-width:90px;max-height:60px;object-fit:contain;background:#fff;border:1px solid #ddd;padding:2px;"></a>';
         }
 
         if ($type === 'pdf') {
