@@ -3,17 +3,20 @@
 namespace DBGPlatform\Integrations\WooCommerce;
 
 use DBGPlatform\Audit\AuditLogger;
+use DBGPlatform\Remote\RemoteClient;
 use DBGPlatform\Settings\SettingsRepository;
 
 class WooCommerceOrderSync
 {
     private WooCommerceOrderMapper $mapper;
     private AuditLogger $audit;
+    private RemoteClient $remote;
 
     public function __construct()
     {
         $this->mapper = new WooCommerceOrderMapper();
         $this->audit = new AuditLogger();
+        $this->remote = new RemoteClient();
     }
 
     public function handleOrderCreated(int $orderId): void
@@ -26,7 +29,7 @@ class WooCommerceOrderSync
         }
 
         $this->audit->record('woocommerce_order_created', 'woocommerce_order', $orderId, $payload);
-        $this->maybeSyncRemote($payload);
+        $this->maybeSyncRemote('woocommerce/orders', $orderId, $payload);
     }
 
     public function handleOrderStatusChanged(int $orderId, string $oldStatus, string $newStatus): void
@@ -37,10 +40,10 @@ class WooCommerceOrderSync
         $payload['new_status'] = $newStatus;
 
         $this->audit->record('woocommerce_order_status_changed', 'woocommerce_order', $orderId, $payload);
-        $this->maybeSyncRemote($payload);
+        $this->maybeSyncRemote('woocommerce/orders/status-changed', $orderId, $payload);
     }
 
-    private function maybeSyncRemote(array $payload): void
+    private function maybeSyncRemote(string $endpoint, int $orderId, array $payload): void
     {
         $settings = (new SettingsRepository())->all();
 
@@ -52,6 +55,13 @@ class WooCommerceOrderSync
             return;
         }
 
-        // Remote sync transport will be implemented in a dedicated sprint.
+        $result = $this->remote->post($endpoint, $payload);
+
+        $this->audit->record(
+            !empty($result['success']) ? 'remote_sync_success' : 'remote_sync_failed',
+            'woocommerce_order',
+            $orderId,
+            $result
+        );
     }
 }
