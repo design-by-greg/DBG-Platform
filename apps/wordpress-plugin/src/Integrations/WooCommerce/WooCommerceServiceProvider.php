@@ -11,6 +11,13 @@ class WooCommerceServiceProvider
 
     public function bootWooCommerce(): void
     {
-        // Future WooCommerce hooks will be registered here.
+        if (!function_exists('wc_get_order')) {
+            return;
+        }
+
+        $sync = new WooCommerceOrderSync();
+
+        add_action('woocommerce_new_order', [$sync, 'handleOrderCreated'], 10, 1);
+        add_action('woocommerce_order_status_changed', [$sync, 'handleOrderStatusChanged'], 10, 3);
     }
 }
