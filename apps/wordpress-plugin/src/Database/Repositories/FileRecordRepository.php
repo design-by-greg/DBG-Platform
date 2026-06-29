@@ -92,6 +92,8 @@ class FileRecordRepository
             'size' => absint($data['size'] ?? 0),
             'path' => sanitize_text_field($data['path'] ?? ''),
             'url' => esc_url_raw($data['url'] ?? ''),
+            'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''),
+            'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''),
             'status' => 'active',
             'created_at' => $now,
             'updated_at' => $now,
@@ -112,7 +114,21 @@ class FileRecordRepository
             'size' => absint($data['size'] ?? 0),
             'path' => sanitize_text_field($data['path'] ?? ''),
             'url' => esc_url_raw($data['url'] ?? ''),
+            'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''),
+            'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''),
             'status' => 'active',
+            'updated_at' => current_time('mysql'),
+        ], ['id' => $id]);
+    }
+
+    public function updateThumbnail(int $id, array $thumbnail): bool
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_file_records';
+
+        return false !== $wpdb->update($table, [
+            'thumbnail_path' => sanitize_text_field($thumbnail['thumbnail_path'] ?? ''),
+            'thumbnail_url' => esc_url_raw($thumbnail['thumbnail_url'] ?? ''),
             'updated_at' => current_time('mysql'),
         ], ['id' => $id]);
     }
