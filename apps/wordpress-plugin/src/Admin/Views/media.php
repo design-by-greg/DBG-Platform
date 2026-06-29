@@ -39,11 +39,12 @@ $files = $fileRepository->all(100);
                     <th>Size</th>
                     <th>Status</th>
                     <th>Open</th>
+                    <th>Archive</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($files)) : ?>
-                <tr><td colspan="9">No file records found.</td></tr>
+                <tr><td colspan="10">No file records found.</td></tr>
             <?php else : ?>
                 <?php foreach ($files as $file) : ?>
                     <tr>
@@ -56,6 +57,18 @@ $files = $fileRepository->all(100);
                         <td><?php echo esc_html(size_format((int) $file['size'])); ?></td>
                         <td><?php echo esc_html($file['status']); ?></td>
                         <td><a href="<?php echo esc_url($file['url']); ?>" target="_blank" rel="noopener">Open</a></td>
+                        <td>
+                            <?php if ($file['status'] !== 'archived') : ?>
+                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                    <input type="hidden" name="action" value="dbg_archive_file">
+                                    <input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>">
+                                    <?php wp_nonce_field('dbg_archive_file'); ?>
+                                    <button class="button">Archive</button>
+                                </form>
+                            <?php else : ?>
+                                —
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
