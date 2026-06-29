@@ -4,6 +4,7 @@ if (!defined('ABSPATH')) {
 }
 
 $fileRepository = new \DBGPlatform\Database\Repositories\FileRecordRepository();
+$previewService = new \DBGPlatform\Files\FilePreviewService();
 $files = $fileRepository->all(100);
 ?>
 <div class="wrap dbg-platform-admin">
@@ -31,6 +32,7 @@ $files = $fileRepository->all(100);
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Preview</th>
                     <th>Asset</th>
                     <th>Organisation</th>
                     <th>Project</th>
@@ -44,11 +46,12 @@ $files = $fileRepository->all(100);
             </thead>
             <tbody>
             <?php if (empty($files)) : ?>
-                <tr><td colspan="10">No file records found.</td></tr>
+                <tr><td colspan="11">No file records found.</td></tr>
             <?php else : ?>
                 <?php foreach ($files as $file) : ?>
                     <tr>
                         <td><?php echo esc_html($file['id']); ?></td>
+                        <td><?php echo wp_kses_post($previewService->render($file)); ?></td>
                         <td><?php echo esc_html($file['asset_id']); ?></td>
                         <td><?php echo esc_html($file['organisation_id']); ?></td>
                         <td><?php echo esc_html($file['project_id']); ?></td>
