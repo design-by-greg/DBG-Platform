@@ -3,10 +3,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-$assetsRepository = new \DBGPlatform\Database\Repositories\AssetRepository();
-$assets = array_filter($assetsRepository->all(), function ($asset) {
-    return in_array($asset['type'], ['document', 'image', 'logo', 'bat', 'template'], true);
-});
+$fileRepository = new \DBGPlatform\Database\Repositories\FileRecordRepository();
+$files = $fileRepository->all(100);
 ?>
 <div class="wrap dbg-platform-admin">
     <h1>Media</h1>
@@ -28,30 +26,36 @@ $assets = array_filter($assetsRepository->all(), function ($asset) {
     </div>
 
     <div class="dbg-platform-panel">
-        <h2>Media assets</h2>
+        <h2>File records</h2>
         <table class="widefat striped">
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Asset</th>
                     <th>Organisation</th>
                     <th>Project</th>
-                    <th>Type</th>
                     <th>Name</th>
+                    <th>Type</th>
+                    <th>Size</th>
                     <th>Status</th>
+                    <th>Open</th>
                 </tr>
             </thead>
             <tbody>
-            <?php if (empty($assets)) : ?>
-                <tr><td colspan="6">No media assets found.</td></tr>
+            <?php if (empty($files)) : ?>
+                <tr><td colspan="9">No file records found.</td></tr>
             <?php else : ?>
-                <?php foreach ($assets as $asset) : ?>
+                <?php foreach ($files as $file) : ?>
                     <tr>
-                        <td><?php echo esc_html($asset['id']); ?></td>
-                        <td><?php echo esc_html($asset['organisation_id']); ?></td>
-                        <td><?php echo esc_html($asset['project_id']); ?></td>
-                        <td><?php echo esc_html($asset['type']); ?></td>
-                        <td><?php echo esc_html($asset['name']); ?></td>
-                        <td><?php echo esc_html($asset['status']); ?></td>
+                        <td><?php echo esc_html($file['id']); ?></td>
+                        <td><?php echo esc_html($file['asset_id']); ?></td>
+                        <td><?php echo esc_html($file['organisation_id']); ?></td>
+                        <td><?php echo esc_html($file['project_id']); ?></td>
+                        <td><?php echo esc_html($file['original_name']); ?></td>
+                        <td><?php echo esc_html($file['mime_type']); ?></td>
+                        <td><?php echo esc_html(size_format((int) $file['size'])); ?></td>
+                        <td><?php echo esc_html($file['status']); ?></td>
+                        <td><a href="<?php echo esc_url($file['url']); ?>" target="_blank" rel="noopener">Open</a></td>
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
