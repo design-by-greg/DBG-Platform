@@ -121,6 +121,78 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    buildViewer();
+
+    document.querySelectorAll('[data-dbg-viewer-open]').forEach(function (trigger) {
+        trigger.addEventListener('click', function (event) {
+            event.preventDefault();
+            openViewer(trigger.getAttribute('data-dbg-viewer-open'), trigger.getAttribute('data-dbg-viewer-type'), trigger.getAttribute('data-dbg-viewer-title'));
+        });
+    });
+
+    function buildViewer() {
+        if (document.querySelector('[data-dbg-viewer]')) {
+            return;
+        }
+
+        var viewer = document.createElement('div');
+        viewer.className = 'dbg-viewer';
+        viewer.setAttribute('data-dbg-viewer', '');
+        viewer.hidden = true;
+        viewer.innerHTML = '<div class="dbg-viewer-backdrop" data-dbg-viewer-close></div><div class="dbg-viewer-dialog"><button type="button" class="dbg-viewer-close" data-dbg-viewer-close>×</button><h2 data-dbg-viewer-title></h2><div class="dbg-viewer-content" data-dbg-viewer-content></div></div>';
+        document.body.appendChild(viewer);
+
+        viewer.querySelectorAll('[data-dbg-viewer-close]').forEach(function (close) {
+            close.addEventListener('click', closeViewer);
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeViewer();
+            }
+        });
+    }
+
+    function openViewer(url, type, title) {
+        var viewer = document.querySelector('[data-dbg-viewer]');
+        var content = viewer.querySelector('[data-dbg-viewer-content]');
+        var titleNode = viewer.querySelector('[data-dbg-viewer-title]');
+
+        titleNode.textContent = title || 'Preview';
+        content.innerHTML = '';
+
+        if (type === 'image') {
+            var image = document.createElement('img');
+            image.src = url;
+            image.alt = title || 'Preview';
+            content.appendChild(image);
+        } else if (type === 'pdf') {
+            var frame = document.createElement('iframe');
+            frame.src = url;
+            frame.title = title || 'PDF preview';
+            content.appendChild(frame);
+        } else {
+            var link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.textContent = 'Open file';
+            content.appendChild(link);
+        }
+
+        viewer.hidden = false;
+        document.body.classList.add('dbg-viewer-open');
+    }
+
+    function closeViewer() {
+        var viewer = document.querySelector('[data-dbg-viewer]');
+        if (!viewer) {
+            return;
+        }
+        viewer.hidden = true;
+        document.body.classList.remove('dbg-viewer-open');
+    }
+
     function updateLabel(input, label) {
         if (!label) {
             return;
