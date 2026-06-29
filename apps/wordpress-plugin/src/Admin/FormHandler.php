@@ -6,6 +6,7 @@ use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\OrganisationRepository;
 use DBGPlatform\Database\Repositories\ProjectRepository;
+use DBGPlatform\Files\FileUploadService;
 use DBGPlatform\Settings\SettingsRepository;
 
 class FormHandler
@@ -22,6 +23,7 @@ class FormHandler
         add_action('admin_post_dbg_update_asset', [$this, 'updateAsset']);
         add_action('admin_post_dbg_delete_asset', [$this, 'deleteAsset']);
         add_action('admin_post_dbg_update_settings', [$this, 'updateSettings']);
+        add_action('admin_post_dbg_upload_media', [$this, 'uploadMedia']);
     }
 
     public function createOrganisation(): void
@@ -108,6 +110,43 @@ class FormHandler
 
         (new AuditLogger())->record('updated', 'settings', null, ['sync_mode' => $settings['sync_mode']]);
         $this->redirect('dbg-platform-settings', 'updated');
+    }
+
+    public function uploadMedia(): void
+    {
+        $this->guard('dbg_upload_media');
+
+        $organisationId = absint($_POST['organisation_id'] ?? 0);
+        $projectId = absint($_POST['project_id'] ?? 0);
+
+        if ($organisationId <= 0) {
+            $this->redirect('dbg-platform-media', 'error', ['Organisation ID is required.']);
+        }
+
+        if (empty($_FILES['file'])) {
+            $this->redirect('dbg-platform-media', 'error', ['File is required.']);
+        }
+
+        $result = (new FileUploadService())->upload($_FILES['file'], [
+            'organisation_id' => $organisationId,
+            'project_id' => $projectId,
+        ]);
+
+        if (empty($result['success'])) {
+            $this->redirect('dbg-platform-media', 'error', [$result['message'] ?? 'Upload failed.']);
+        }
+
+        $assetId = (new AssetRepository())->create([
+            'organisation_id' => $organisationId,
+            'project_id' => $projectId,
+            'type' => 'document',
+            'name' => $result['original_name'],
+        ]);
+
+        $result['asset_id'] = $assetId;
+        (new AuditLogger())->record('uploaded', 'file', $assetId, $result);
+
+        $this->redirect('dbg-platform-media', 'uploaded');
     }
 
     private function validateOrganisation(): void
