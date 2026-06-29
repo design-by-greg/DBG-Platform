@@ -10,9 +10,7 @@ $organisations = $repository->all();
     <h1>Organisations</h1>
     <p>List and manage Organisations connected to DBG Platform.</p>
 
-    <?php if (isset($_GET['dbg_status']) && $_GET['dbg_status'] === 'created') : ?>
-        <div class="notice notice-success is-dismissible"><p>Organisation created.</p></div>
-    <?php endif; ?>
+    <?php include DBG_PLATFORM_PLUGIN_DIR . 'src/Admin/Views/notices.php'; ?>
 
     <div class="dbg-platform-panel">
         <h2>Create Organisation</h2>
@@ -20,7 +18,15 @@ $organisations = $repository->all();
             <input type="hidden" name="action" value="dbg_create_organisation">
             <?php wp_nonce_field('dbg_create_organisation'); ?>
             <p><input type="text" name="dbg_organisation_name" placeholder="Organisation name" class="regular-text" required></p>
-            <p><input type="text" name="dbg_organisation_type" placeholder="company, club, association" class="regular-text" required></p>
+            <p>
+                <select name="dbg_organisation_type" class="regular-text" required>
+                    <option value="company">Company</option>
+                    <option value="club">Club</option>
+                    <option value="association">Association</option>
+                    <option value="public_body">Public body</option>
+                    <option value="partner">Partner</option>
+                </select>
+            </p>
             <p><button class="button button-primary">Create Organisation</button></p>
         </form>
     </div>
