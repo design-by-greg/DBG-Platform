@@ -28,6 +28,11 @@ class FileRecordRepository
             $params[] = absint($filters['project_id']);
         }
 
+        if (!empty($filters['folder_id'])) {
+            $where[] = 'folder_id = %d';
+            $params[] = absint($filters['folder_id']);
+        }
+
         if (!empty($filters['asset_id'])) {
             $where[] = 'asset_id = %d';
             $params[] = absint($filters['asset_id']);
@@ -80,6 +85,7 @@ class FileRecordRepository
             'asset_id' => absint($data['asset_id'] ?? 0),
             'organisation_id' => absint($data['organisation_id'] ?? 0),
             'project_id' => absint($data['project_id'] ?? 0),
+            'folder_id' => absint($data['folder_id'] ?? 0),
             'original_name' => sanitize_file_name($data['original_name'] ?? ''),
             'filename' => sanitize_file_name($data['filename'] ?? ''),
             'mime_type' => sanitize_text_field($data['mime_type'] ?? ''),
@@ -107,6 +113,17 @@ class FileRecordRepository
             'path' => sanitize_text_field($data['path'] ?? ''),
             'url' => esc_url_raw($data['url'] ?? ''),
             'status' => 'active',
+            'updated_at' => current_time('mysql'),
+        ], ['id' => $id]);
+    }
+
+    public function moveToFolder(int $id, int $folderId): bool
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_file_records';
+
+        return false !== $wpdb->update($table, [
+            'folder_id' => $folderId,
             'updated_at' => current_time('mysql'),
         ], ['id' => $id]);
     }
