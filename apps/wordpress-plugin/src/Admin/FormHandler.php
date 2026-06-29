@@ -2,9 +2,11 @@
 
 namespace DBGPlatform\Admin;
 
+use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\OrganisationRepository;
 use DBGPlatform\Database\Repositories\ProjectRepository;
+use DBGPlatform\Settings\SettingsRepository;
 
 class FormHandler
 {
@@ -19,6 +21,7 @@ class FormHandler
         add_action('admin_post_dbg_create_asset', [$this, 'createAsset']);
         add_action('admin_post_dbg_update_asset', [$this, 'updateAsset']);
         add_action('admin_post_dbg_delete_asset', [$this, 'deleteAsset']);
+        add_action('admin_post_dbg_update_settings', [$this, 'updateSettings']);
     }
 
     public function createOrganisation(): void
@@ -90,6 +93,23 @@ class FormHandler
         $this->redirect('dbg-platform-assets', 'deleted');
     }
 
+    public function updateSettings(): void
+    {
+        $this->guard('dbg_update_settings');
+        $this->validateSettings();
+
+        $settings = (new SettingsRepository())->update([
+            'api_base_url' => $_POST['api_base_url'] ?? '',
+            'api_token' => $_POST['api_token'] ?? '',
+            'sync_mode' => $_POST['sync_mode'] ?? 'local',
+            'woocommerce_enabled' => !empty($_POST['woocommerce_enabled']),
+            'debug_enabled' => !empty($_POST['debug_enabled']),
+        ]);
+
+        (new AuditLogger())->record('updated', 'settings', null, ['sync_mode' => $settings['sync_mode']]);
+        $this->redirect('dbg-platform-settings', 'updated');
+    }
+
     private function validateOrganisation(): void
     {
         $validator = (new FormValidator())
@@ -118,6 +138,15 @@ class FormHandler
             ->required('dbg_asset_name', 'Asset name', $_POST);
         if (!$validator->passes()) {
             $this->redirect('dbg-platform-assets', 'error', $validator->errors());
+        }
+    }
+
+    private function validateSettings(): void
+    {
+        $validator = (new FormValidator())
+            ->allowedValue('sync_mode', 'Sync mode', ['local', 'remote', 'hybrid'], $_POST);
+        if (!$validator->passes()) {
+            $this->redirect('dbg-platform-settings', 'error', $validator->errors());
         }
     }
 
