@@ -4,6 +4,7 @@ if (!defined('ABSPATH')) {
 }
 
 $fileRepository = new \DBGPlatform\Database\Repositories\FileRecordRepository();
+$versionRepository = new \DBGPlatform\Database\Repositories\FileVersionRepository();
 $previewService = new \DBGPlatform\Files\FilePreviewService();
 $filters = [
     'organisation_id' => absint($_GET['organisation_id'] ?? 0),
@@ -17,7 +18,7 @@ $files = $fileRepository->search($filters, 100);
 ?>
 <div class="wrap dbg-platform-admin">
     <h1>Media</h1>
-    <p>Upload, filter and review files linked to DBG Platform assets.</p>
+    <p>Upload, filter, version and review files linked to DBG Platform assets.</p>
 
     <?php include DBG_PLATFORM_PLUGIN_DIR . 'src/Admin/Views/notices.php'; ?>
 
@@ -68,15 +69,20 @@ $files = $fileRepository->search($filters, 100);
                     <th>Size</th>
                     <th>Status</th>
                     <th>Download</th>
+                    <th>New version</th>
+                    <th>Versions</th>
                     <th>Archive</th>
                 </tr>
             </thead>
             <tbody>
             <?php if (empty($files)) : ?>
-                <tr><td colspan="11">No file records found.</td></tr>
+                <tr><td colspan="13">No file records found.</td></tr>
             <?php else : ?>
                 <?php foreach ($files as $file) : ?>
-                    <?php $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file'); ?>
+                    <?php
+                    $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file');
+                    $versions = $versionRepository->allForFile((int) $file['id']);
+                    ?>
                     <tr>
                         <td><?php echo esc_html($file['id']); ?></td>
                         <td><?php echo wp_kses_post($previewService->render($file)); ?></td>
@@ -88,6 +94,29 @@ $files = $fileRepository->search($filters, 100);
                         <td><?php echo esc_html(size_format((int) $file['size'])); ?></td>
                         <td><?php echo esc_html($file['status']); ?></td>
                         <td><a class="button" href="<?php echo esc_url($downloadUrl); ?>">Download</a></td>
+                        <td>
+                            <?php if ($file['status'] !== 'archived') : ?>
+                                <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                    <input type="hidden" name="action" value="dbg_upload_file_version">
+                                    <input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>">
+                                    <?php wp_nonce_field('dbg_upload_file_version'); ?>
+                                    <input type="file" name="file" required>
+                                    <input type="text" name="version_note" placeholder="Note" size="12">
+                                    <button class="button">Add version</button>
+                                </form>
+                            <?php else : ?>
+                                —
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if (empty($versions)) : ?>
+                                —
+                            <?php else : ?>
+                                <?php foreach ($versions as $version) : ?>
+                                    <div>v<?php echo esc_html($version['version_number']); ?> · <?php echo esc_html(size_format((int) $version['size'])); ?> · <?php echo esc_html($version['created_at']); ?></div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($file['status'] !== 'archived') : ?>
                                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
