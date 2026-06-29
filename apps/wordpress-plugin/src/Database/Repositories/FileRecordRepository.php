@@ -121,6 +121,17 @@ class FileRecordRepository
         ], ['id' => $id]);
     }
 
+    public function rename(int $id, string $name): bool
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_file_records';
+
+        return false !== $wpdb->update($table, [
+            'original_name' => sanitize_file_name($name),
+            'updated_at' => current_time('mysql'),
+        ], ['id' => $id]);
+    }
+
     public function updateThumbnail(int $id, array $thumbnail): bool
     {
         global $wpdb;
