@@ -10,6 +10,7 @@ class AdminServiceProvider
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
+        (new MediaBulkActionHandler())->register();
         (new FormHandler())->register();
     }
 
