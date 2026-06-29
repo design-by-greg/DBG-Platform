@@ -17,7 +17,7 @@ class Migrator
             dbDelta($sql);
         }
 
-        update_option('dbg_platform_db_version', '0.1.1');
+        update_option('dbg_platform_db_version', '0.1.2');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -61,6 +61,28 @@ class Migrator
                 KEY organisation_id (organisation_id),
                 KEY project_id (project_id),
                 KEY type (type),
+                KEY status (status)
+            ) {$charset};",
+
+            "CREATE TABLE {$prefix}file_records (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                asset_id BIGINT UNSIGNED NULL,
+                organisation_id BIGINT UNSIGNED NOT NULL,
+                project_id BIGINT UNSIGNED NULL,
+                original_name VARCHAR(255) NOT NULL,
+                filename VARCHAR(255) NOT NULL,
+                mime_type VARCHAR(128) NOT NULL,
+                size BIGINT UNSIGNED NOT NULL DEFAULT 0,
+                path TEXT NOT NULL,
+                url TEXT NOT NULL,
+                status VARCHAR(64) NOT NULL DEFAULT 'active',
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY asset_id (asset_id),
+                KEY organisation_id (organisation_id),
+                KEY project_id (project_id),
+                KEY mime_type (mime_type),
                 KEY status (status)
             ) {$charset};",
 
