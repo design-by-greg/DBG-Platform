@@ -33,6 +33,7 @@ class FilePreviewService
         $url = esc_url((string) ($file['url'] ?? ''));
         $thumbnailUrl = esc_url((string) ($file['thumbnail_url'] ?? ''));
         $name = esc_html((string) ($file['original_name'] ?? 'File'));
+        $viewerAttrs = ' data-dbg-viewer-open="' . esc_attr($url) . '" data-dbg-viewer-type="' . esc_attr($type) . '" data-dbg-viewer-title="' . esc_attr($name) . '"';
 
         if ($url === '') {
             return '<span>No preview</span>';
@@ -40,11 +41,11 @@ class FilePreviewService
 
         if ($type === 'image') {
             $previewUrl = $thumbnailUrl !== '' ? $thumbnailUrl : $url;
-            return '<a href="' . $url . '" target="_blank" rel="noopener"><img src="' . $previewUrl . '" alt="' . $name . '" style="max-width:90px;max-height:60px;object-fit:contain;background:#fff;border:1px solid #ddd;padding:2px;"></a>';
+            return '<a href="' . $url . '"' . $viewerAttrs . '><img src="' . $previewUrl . '" alt="' . $name . '" style="max-width:90px;max-height:60px;object-fit:contain;background:#fff;border:1px solid #ddd;padding:2px;"></a>';
         }
 
         if ($type === 'pdf') {
-            return '<a class="button" href="' . $url . '" target="_blank" rel="noopener">Preview PDF</a>';
+            return '<a class="button" href="' . $url . '"' . $viewerAttrs . '>Preview PDF</a>';
         }
 
         return '<a href="' . $url . '" target="_blank" rel="noopener">' . esc_html(strtoupper($type)) . '</a>';
