@@ -2,10 +2,11 @@
 
 namespace DBGPlatform\API;
 
+use DBGPlatform\API\Routes\AssetRoutes;
+use DBGPlatform\API\Routes\AuditRoutes;
+use DBGPlatform\API\Routes\CommerceRoutes;
 use DBGPlatform\API\Routes\IdentityRoutes;
 use DBGPlatform\API\Routes\ProjectRoutes;
-use DBGPlatform\API\Routes\AssetRoutes;
-use DBGPlatform\API\Routes\CommerceRoutes;
 
 class RestServiceProvider
 {
@@ -20,5 +21,6 @@ class RestServiceProvider
         (new ProjectRoutes())->register();
         (new AssetRoutes())->register();
         (new CommerceRoutes())->register();
+        (new AuditRoutes())->register();
     }
 }
