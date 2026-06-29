@@ -6,10 +6,48 @@ class AuditLogRepository
 {
     public function all(int $limit = 100): array
     {
+        return $this->search([], $limit);
+    }
+
+    public function search(array $filters = [], int $limit = 100): array
+    {
         global $wpdb;
         $table = $wpdb->prefix . 'dbg_audit_logs';
-        $limit = max(1, min(500, $limit));
-        return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} ORDER BY id DESC LIMIT %d", $limit), ARRAY_A) ?: [];
+        $limit = max(1, min(500, absint($limit)));
+
+        $where = [];
+        $params = [];
+
+        if (!empty($filters['action'])) {
+            $where[] = 'action = %s';
+            $params[] = sanitize_key($filters['action']);
+        }
+
+        if (!empty($filters['entity_type'])) {
+            $where[] = 'entity_type = %s';
+            $params[] = sanitize_key($filters['entity_type']);
+        }
+
+        if (!empty($filters['actor_id'])) {
+            $where[] = 'actor_id = %d';
+            $params[] = absint($filters['actor_id']);
+        }
+
+        if (!empty($filters['entity_id'])) {
+            $where[] = 'entity_id = %d';
+            $params[] = absint($filters['entity_id']);
+        }
+
+        $sql = "SELECT * FROM {$table}";
+
+        if (!empty($where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+
+        $sql .= ' ORDER BY id DESC LIMIT %d';
+        $params[] = $limit;
+
+        return $wpdb->get_results($wpdb->prepare($sql, $params), ARRAY_A) ?: [];
     }
 
     public function record(string $action, string $entityType, ?int $entityId = null, array $payload = []): int
