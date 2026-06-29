@@ -1,0 +1,70 @@
+<?php
+
+namespace DBGPlatform\Files;
+
+class FileUploadService
+{
+    private array $allowedMimes = [
+        'application/pdf',
+        'image/png',
+        'image/jpeg',
+        'image/svg+xml',
+        'application/zip',
+        'application/x-zip-compressed',
+        'application/postscript',
+        'application/illustrator',
+    ];
+
+    public function upload(array $file, array $context = []): array
+    {
+        if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+            return ['success' => false, 'message' => 'No valid uploaded file.'];
+        }
+
+        $mime = (string) ($file['type'] ?? '');
+
+        if (!in_array($mime, $this->allowedMimes, true)) {
+            return ['success' => false, 'message' => 'File type is not allowed.'];
+        }
+
+        $maxSize = 50 * 1024 * 1024;
+        if ((int) ($file['size'] ?? 0) > $maxSize) {
+            return ['success' => false, 'message' => 'File is too large.'];
+        }
+
+        $uploads = wp_upload_dir();
+        $baseDir = trailingslashit($uploads['basedir']) . 'dbg-platform';
+        $baseUrl = trailingslashit($uploads['baseurl']) . 'dbg-platform';
+
+        $organisationId = absint($context['organisation_id'] ?? 0);
+        $projectId = absint($context['project_id'] ?? 0);
+        $targetDir = $baseDir . '/org-' . $organisationId . '/project-' . $projectId;
+
+        if (!wp_mkdir_p($targetDir)) {
+            return ['success' => false, 'message' => 'Unable to create upload directory.'];
+        }
+
+        $originalName = sanitize_file_name((string) ($file['name'] ?? 'upload'));
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $filename = uniqid('dbg_', true) . ($extension ? '.' . strtolower($extension) : '');
+        $destination = trailingslashit($targetDir) . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+            return ['success' => false, 'message' => 'Unable to move uploaded file.'];
+        }
+
+        $relativePath = 'dbg-platform/org-' . $organisationId . '/project-' . $projectId . '/' . $filename;
+
+        return [
+            'success' => true,
+            'original_name' => $originalName,
+            'filename' => $filename,
+            'mime_type' => $mime,
+            'size' => (int) $file['size'],
+            'path' => $relativePath,
+            'url' => trailingslashit($baseUrl) . 'org-' . $organisationId . '/project-' . $projectId . '/' . $filename,
+            'organisation_id' => $organisationId,
+            'project_id' => $projectId,
+        ];
+    }
+}
