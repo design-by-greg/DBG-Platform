@@ -6,8 +6,14 @@ if (!defined('ABSPATH')) {
 $status = sanitize_key($_GET['dbg_status'] ?? '');
 $errors = get_transient('dbg_platform_form_errors_' . get_current_user_id());
 
-if ($status === 'created') {
-    echo '<div class="notice notice-success is-dismissible"><p>Item created successfully.</p></div>';
+$successMessages = [
+    'created' => 'Item created successfully.',
+    'updated' => 'Item updated successfully.',
+    'deleted' => 'Item archived successfully.',
+];
+
+if (isset($successMessages[$status])) {
+    echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($successMessages[$status]) . '</p></div>';
 }
 
 if ($status === 'error' && !empty($errors) && is_array($errors)) {
