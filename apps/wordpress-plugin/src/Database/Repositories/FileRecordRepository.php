@@ -155,6 +155,15 @@ class FileRecordRepository
         ], ['id' => $id]);
     }
 
+    public function bulkMoveToFolder(array $ids, int $folderId): int
+    {
+        $count = 0;
+        foreach ($this->cleanIds($ids) as $id) {
+            $count += $this->moveToFolder($id, $folderId) ? 1 : 0;
+        }
+        return $count;
+    }
+
     public function archive(int $id): bool
     {
         global $wpdb;
@@ -164,5 +173,19 @@ class FileRecordRepository
             'status' => 'archived',
             'updated_at' => current_time('mysql'),
         ], ['id' => $id]);
+    }
+
+    public function bulkArchive(array $ids): int
+    {
+        $count = 0;
+        foreach ($this->cleanIds($ids) as $id) {
+            $count += $this->archive($id) ? 1 : 0;
+        }
+        return $count;
+    }
+
+    private function cleanIds(array $ids): array
+    {
+        return array_values(array_unique(array_filter(array_map('absint', $ids))));
     }
 }
