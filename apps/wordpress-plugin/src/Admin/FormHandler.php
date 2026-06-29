@@ -25,6 +25,7 @@ class FormHandler
         add_action('admin_post_dbg_delete_asset', [$this, 'deleteAsset']);
         add_action('admin_post_dbg_update_settings', [$this, 'updateSettings']);
         add_action('admin_post_dbg_upload_media', [$this, 'uploadMedia']);
+        add_action('admin_post_dbg_archive_file', [$this, 'archiveFile']);
     }
 
     public function createOrganisation(): void
@@ -150,6 +151,22 @@ class FormHandler
         (new AuditLogger())->record('uploaded', 'file', $result['file_record_id'], $result);
 
         $this->redirect('dbg-platform-media', 'uploaded');
+    }
+
+    public function archiveFile(): void
+    {
+        $this->guard('dbg_archive_file');
+
+        $fileId = absint($_POST['file_id'] ?? 0);
+
+        if ($fileId <= 0) {
+            $this->redirect('dbg-platform-media', 'error', ['File ID is required.']);
+        }
+
+        $archived = (new FileRecordRepository())->archive($fileId);
+        (new AuditLogger())->record('archived', 'file', $fileId, ['archived' => $archived]);
+
+        $this->redirect('dbg-platform-media', 'deleted');
     }
 
     private function validateOrganisation(): void
