@@ -10,14 +10,19 @@ $projects = $repository->all();
     <h1>Projects</h1>
     <p>Project-first view for customer work, assets and orders.</p>
 
+    <?php if (isset($_GET['dbg_status']) && $_GET['dbg_status'] === 'created') : ?>
+        <div class="notice notice-success is-dismissible"><p>Project created.</p></div>
+    <?php endif; ?>
+
     <div class="dbg-platform-panel">
         <h2>Create Project</h2>
-        <form method="post" action="">
-            <p><input type="number" name="dbg_project_organisation_id" placeholder="Organisation ID" class="regular-text"></p>
-            <p><input type="text" name="dbg_project_name" placeholder="Project name" class="regular-text"></p>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="dbg_create_project">
+            <?php wp_nonce_field('dbg_create_project'); ?>
+            <p><input type="number" name="dbg_project_organisation_id" placeholder="Organisation ID" class="regular-text" required></p>
+            <p><input type="text" name="dbg_project_name" placeholder="Project name" class="regular-text" required></p>
             <p><textarea name="dbg_project_description" placeholder="Description" class="large-text"></textarea></p>
-            <p><button class="button button-primary" disabled>Create Project</button></p>
-            <p class="description">Form UI ready. Submission handler will be added in next sprint.</p>
+            <p><button class="button button-primary">Create Project</button></p>
         </form>
     </div>
 
