@@ -39,6 +39,27 @@ class FileRecordRepository
         ];
     }
 
+    public function duplicateGroups(): array
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_file_records';
+        $groups = $wpdb->get_results("SELECT file_hash, COUNT(*) as duplicate_count FROM {$table} WHERE file_hash IS NOT NULL AND file_hash != '' AND status != 'archived' GROUP BY file_hash HAVING COUNT(*) > 1 ORDER BY duplicate_count DESC", ARRAY_A) ?: [];
+
+        foreach ($groups as &$group) {
+            $group['files'] = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} WHERE file_hash = %s AND status != 'archived' ORDER BY id DESC", $group['file_hash']), ARRAY_A) ?: [];
+        }
+
+        return $groups;
+    }
+
+    public function duplicatesForHash(string $hash): array
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_file_records';
+        $hash = sanitize_text_field($hash);
+        return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} WHERE file_hash = %s AND status != 'archived' ORDER BY id DESC", $hash), ARRAY_A) ?: [];
+    }
+
     private function whereSql(array $filters): array
     {
         global $wpdb;
@@ -51,13 +72,12 @@ class FileRecordRepository
         if (!empty($filters['folder_id'])) { $where[] = 'folder_id = %d'; $params[] = absint($filters['folder_id']); }
         if (!empty($filters['asset_id'])) { $where[] = 'asset_id = %d'; $params[] = absint($filters['asset_id']); }
         if (isset($filters['is_favorite']) && $filters['is_favorite'] !== '') { $where[] = 'is_favorite = %d'; $params[] = absint($filters['is_favorite']); }
+        if (!empty($filters['file_hash'])) { $where[] = 'file_hash = %s'; $params[] = sanitize_text_field($filters['file_hash']); }
+        if (!empty($filters['only_duplicates'])) { $where[] = "file_hash IN (SELECT file_hash FROM {$wpdb->prefix}dbg_file_records WHERE file_hash IS NOT NULL AND file_hash != '' GROUP BY file_hash HAVING COUNT(*) > 1)"; }
         if (!empty($filters['meta_key'])) { $where[] = "id IN (SELECT file_record_id FROM {$metadataTable} WHERE meta_key = %s)"; $params[] = sanitize_key($filters['meta_key']); }
         if (!empty($filters['meta_value'])) { $where[] = "id IN (SELECT file_record_id FROM {$metadataTable} WHERE meta_value LIKE %s)"; $params[] = '%' . $wpdb->esc_like(sanitize_text_field($filters['meta_value'])) . '%'; }
         if (!empty($filters['meta_key']) && !empty($filters['meta_value'])) {
-            array_pop($where);
-            array_pop($where);
-            array_pop($params);
-            array_pop($params);
+            array_pop($where); array_pop($where); array_pop($params); array_pop($params);
             $where[] = "id IN (SELECT file_record_id FROM {$metadataTable} WHERE meta_key = %s AND meta_value LIKE %s)";
             $params[] = sanitize_key($filters['meta_key']);
             $params[] = '%' . $wpdb->esc_like(sanitize_text_field($filters['meta_value'])) . '%';
@@ -109,7 +129,7 @@ class FileRecordRepository
         $wpdb->insert($table, [
             'asset_id' => absint($data['asset_id'] ?? 0), 'organisation_id' => absint($data['organisation_id'] ?? 0), 'project_id' => absint($data['project_id'] ?? 0), 'folder_id' => absint($data['folder_id'] ?? 0),
             'original_name' => sanitize_file_name($data['original_name'] ?? ''), 'filename' => sanitize_file_name($data['filename'] ?? ''), 'mime_type' => sanitize_text_field($data['mime_type'] ?? ''), 'size' => absint($data['size'] ?? 0),
-            'path' => sanitize_text_field($data['path'] ?? ''), 'url' => esc_url_raw($data['url'] ?? ''), 'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''),
+            'file_hash' => sanitize_text_field($data['file_hash'] ?? ''), 'path' => sanitize_text_field($data['path'] ?? ''), 'url' => esc_url_raw($data['url'] ?? ''), 'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''),
             'is_favorite' => absint($data['is_favorite'] ?? 0), 'status' => 'active', 'created_at' => $now, 'updated_at' => $now,
         ]);
         return (int) $wpdb->insert_id;
@@ -121,53 +141,17 @@ class FileRecordRepository
         $table = $wpdb->prefix . 'dbg_file_records';
         return false !== $wpdb->update($table, [
             'original_name' => sanitize_file_name($data['original_name'] ?? ''), 'filename' => sanitize_file_name($data['filename'] ?? ''), 'mime_type' => sanitize_text_field($data['mime_type'] ?? ''), 'size' => absint($data['size'] ?? 0),
-            'path' => sanitize_text_field($data['path'] ?? ''), 'url' => esc_url_raw($data['url'] ?? ''), 'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''),
+            'file_hash' => sanitize_text_field($data['file_hash'] ?? ''), 'path' => sanitize_text_field($data['path'] ?? ''), 'url' => esc_url_raw($data['url'] ?? ''), 'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''),
             'status' => 'active', 'updated_at' => current_time('mysql'),
         ], ['id' => $id]);
     }
 
-    public function rename(int $id, string $name): bool
-    {
-        global $wpdb;
-        return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['original_name' => sanitize_file_name($name), 'updated_at' => current_time('mysql')], ['id' => $id]);
-    }
-
-    public function setFavorite(int $id, bool $favorite): bool
-    {
-        global $wpdb;
-        return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['is_favorite' => $favorite ? 1 : 0, 'updated_at' => current_time('mysql')], ['id' => $id]);
-    }
-
-    public function updateThumbnail(int $id, array $thumbnail): bool
-    {
-        global $wpdb;
-        return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['thumbnail_path' => sanitize_text_field($thumbnail['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($thumbnail['thumbnail_url'] ?? ''), 'updated_at' => current_time('mysql')], ['id' => $id]);
-    }
-
-    public function moveToFolder(int $id, int $folderId): bool
-    {
-        global $wpdb;
-        return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['folder_id' => $folderId, 'updated_at' => current_time('mysql')], ['id' => $id]);
-    }
-
-    public function bulkMoveToFolder(array $ids, int $folderId): int
-    {
-        $count = 0; foreach ($this->cleanIds($ids) as $id) { $count += $this->moveToFolder($id, $folderId) ? 1 : 0; } return $count;
-    }
-
-    public function archive(int $id): bool
-    {
-        global $wpdb;
-        return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['status' => 'archived', 'updated_at' => current_time('mysql')], ['id' => $id]);
-    }
-
-    public function bulkArchive(array $ids): int
-    {
-        $count = 0; foreach ($this->cleanIds($ids) as $id) { $count += $this->archive($id) ? 1 : 0; } return $count;
-    }
-
-    private function cleanIds(array $ids): array
-    {
-        return array_values(array_unique(array_filter(array_map('absint', $ids))));
-    }
+    public function rename(int $id, string $name): bool { global $wpdb; return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['original_name' => sanitize_file_name($name), 'updated_at' => current_time('mysql')], ['id' => $id]); }
+    public function setFavorite(int $id, bool $favorite): bool { global $wpdb; return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['is_favorite' => $favorite ? 1 : 0, 'updated_at' => current_time('mysql')], ['id' => $id]); }
+    public function updateThumbnail(int $id, array $thumbnail): bool { global $wpdb; return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['thumbnail_path' => sanitize_text_field($thumbnail['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($thumbnail['thumbnail_url'] ?? ''), 'updated_at' => current_time('mysql')], ['id' => $id]); }
+    public function moveToFolder(int $id, int $folderId): bool { global $wpdb; return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['folder_id' => $folderId, 'updated_at' => current_time('mysql')], ['id' => $id]); }
+    public function bulkMoveToFolder(array $ids, int $folderId): int { $count = 0; foreach ($this->cleanIds($ids) as $id) { $count += $this->moveToFolder($id, $folderId) ? 1 : 0; } return $count; }
+    public function archive(int $id): bool { global $wpdb; return false !== $wpdb->update($wpdb->prefix . 'dbg_file_records', ['status' => 'archived', 'updated_at' => current_time('mysql')], ['id' => $id]); }
+    public function bulkArchive(array $ids): int { $count = 0; foreach ($this->cleanIds($ids) as $id) { $count += $this->archive($id) ? 1 : 0; } return $count; }
+    private function cleanIds(array $ids): array { return array_values(array_unique(array_filter(array_map('absint', $ids)))); }
 }
