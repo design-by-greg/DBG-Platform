@@ -18,25 +18,30 @@ $groups = $fileRepository->duplicateGroups();
         <?php else : ?>
             <p><?php echo esc_html(count($groups)); ?> duplicate group(s) detected.</p>
             <?php foreach ($groups as $group) : ?>
+                <?php $files = (array) ($group['files'] ?? []); ?>
                 <div class="dbg-platform-panel">
                     <h3>Hash <?php echo esc_html($group['file_hash']); ?></h3>
                     <p><?php echo esc_html($group['duplicate_count']); ?> duplicate files</p>
+
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                        <input type="hidden" name="action" value="dbg_cleanup_duplicate_group">
+                        <input type="hidden" name="file_hash" value="<?php echo esc_attr($group['file_hash']); ?>">
+                        <?php wp_nonce_field('dbg_cleanup_duplicate_group'); ?>
+                        <p>
+                            <label>Master file </label>
+                            <select name="keep_file_id" required>
+                                <?php foreach ($files as $file) : ?>
+                                    <option value="<?php echo esc_attr($file['id']); ?>">#<?php echo esc_html($file['id']); ?> — <?php echo esc_html($file['original_name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button class="button button-primary">Resolve group</button>
+                        </p>
+                    </form>
+
                     <table class="widefat striped">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Preview</th>
-                                <th>Name</th>
-                                <th>Size</th>
-                                <th>Organisation</th>
-                                <th>Project</th>
-                                <th>Folder</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>ID</th><th>Preview</th><th>Name</th><th>Size</th><th>Organisation</th><th>Project</th><th>Folder</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody>
-                            <?php foreach ((array) ($group['files'] ?? []) as $file) : ?>
+                            <?php foreach ($files as $file) : ?>
                                 <?php $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file'); ?>
                                 <tr>
                                     <td><?php echo esc_html($file['id']); ?></td>
@@ -47,18 +52,7 @@ $groups = $fileRepository->duplicateGroups();
                                     <td><?php echo esc_html($file['project_id']); ?></td>
                                     <td><?php echo esc_html($file['folder_id']); ?></td>
                                     <td><?php echo esc_html($file['status']); ?></td>
-                                    <td>
-                                        <a class="button" href="<?php echo esc_url($downloadUrl); ?>">Download</a>
-                                        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media&file_hash=' . rawurlencode((string) $group['file_hash']))); ?>">Filter</a>
-                                        <?php if ($file['status'] !== 'archived') : ?>
-                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block">
-                                                <input type="hidden" name="action" value="dbg_archive_file">
-                                                <input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>">
-                                                <?php wp_nonce_field('dbg_archive_file'); ?>
-                                                <button class="button">Archive</button>
-                                            </form>
-                                        <?php endif; ?>
-                                    </td>
+                                    <td><a class="button" href="<?php echo esc_url($downloadUrl); ?>">Download</a> <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media&file_hash=' . rawurlencode((string) $group['file_hash']))); ?>">Filter</a></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
