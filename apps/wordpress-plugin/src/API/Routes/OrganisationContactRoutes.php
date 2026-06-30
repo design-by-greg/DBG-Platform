@@ -32,21 +32,17 @@ class OrganisationContactRoutes
             ['methods' => 'GET', 'callback' => [$this, 'listContacts'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'POST', 'callback' => [$this, 'createContact'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/organisation-contacts/(?P<id>\d+)', [
             ['methods' => 'GET', 'callback' => [$this, 'getContact'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'PATCH', 'callback' => [$this, 'updateContact'], 'permission_callback' => [$this->gate, 'canManage']],
             ['methods' => 'DELETE', 'callback' => [$this, 'archiveContact'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/organisation-contacts/(?P<id>\d+)/restore', [
             ['methods' => 'PATCH', 'callback' => [$this, 'restoreContact'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/organisation-contacts/(?P<id>\d+)/main', [
             ['methods' => 'PATCH', 'callback' => [$this, 'makeMainContact'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/organisations/(?P<organisation_id>\d+)/settings', [
             ['methods' => 'GET', 'callback' => [$this, 'getSettings'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'PATCH', 'callback' => [$this, 'updateSettings'], 'permission_callback' => [$this->gate, 'canManage']],
@@ -92,47 +88,46 @@ class OrganisationContactRoutes
         return ApiResponse::ok(['updated' => $this->service->update((int) $request['id'], $payload)]);
     }
 
-    public function archiveContact(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]);
-    }
-
-    public function restoreContact(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]);
-    }
-
-    public function makeMainContact(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['main' => $this->service->makeMain((int) $request['id'])]);
-    }
-
-    public function getSettings(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['data' => $this->settings->find(absint($request['organisation_id']))]);
-    }
+    public function archiveContact(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]); }
+    public function restoreContact(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]); }
+    public function makeMainContact(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['main' => $this->service->makeMain((int) $request['id'])]); }
+    public function getSettings(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['data' => $this->settings->find(absint($request['organisation_id']))]); }
 
     public function updateSettings(WP_REST_Request $request): WP_REST_Response
     {
         $payload = $request->get_json_params() ?: [];
+        $validation = $this->validateSettings($payload);
+        if ($validation instanceof WP_REST_Response) { return $validation; }
         return ApiResponse::ok(['data' => $this->settings->update(absint($request['organisation_id']), $payload)]);
     }
 
     private function validateContact(array $payload, bool $create): ?WP_REST_Response
     {
         $validator = new ApiValidator();
-        if ($create) {
-            $validator->required('first_name', 'First name', $payload)->required('last_name', 'Last name', $payload);
-        }
+        if ($create) { $validator->required('first_name', 'First name', $payload)->required('last_name', 'Last name', $payload); }
         $validator
+            ->minLength('first_name', 'First name', 2, $payload)
+            ->minLength('last_name', 'Last name', 2, $payload)
             ->maxLength('first_name', 'First name', 120, $payload)
             ->maxLength('last_name', 'Last name', 120, $payload)
             ->maxLength('job_title', 'Job title', 190, $payload)
             ->maxLength('email', 'Email', 190, $payload)
+            ->email('email', 'Email', $payload)
             ->maxLength('phone', 'Phone', 64, $payload)
             ->maxLength('mobile', 'Mobile', 64, $payload)
-            ->maxLength('department', 'Department', 120, $payload);
+            ->maxLength('department', 'Department', 120, $payload)
+            ->booleanish('is_primary', 'Primary contact', $payload);
         if (isset($payload['status'])) { $validator->allowedValue('status', 'Status', ['active', 'archived'], $payload); }
+        return $validator->passes() ? null : ApiResponse::validation($validator->errors());
+    }
+
+    private function validateSettings(array $payload): ?WP_REST_Response
+    {
+        $validator = (new ApiValidator())
+            ->maxLength('default_language', 'Default language', 16, $payload)
+            ->maxLength('default_currency', 'Default currency', 8, $payload)
+            ->maxLength('default_project_status', 'Default project status', 64, $payload)
+            ->booleanish('branding_enabled', 'Branding enabled', $payload);
         return $validator->passes() ? null : ApiResponse::validation($validator->errors());
     }
 }
