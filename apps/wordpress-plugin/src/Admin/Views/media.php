@@ -13,6 +13,7 @@ $filters = [
     'project_id' => absint($_GET['project_id'] ?? 0),
     'folder_id' => absint($_GET['folder_id'] ?? 0),
     'asset_id' => absint($_GET['asset_id'] ?? 0),
+    'tag_id' => absint($_GET['tag_id'] ?? 0),
     'mime_type' => sanitize_text_field($_GET['mime_type'] ?? ''),
     'status' => sanitize_key($_GET['status'] ?? ''),
     'search' => sanitize_text_field($_GET['search'] ?? ''),
@@ -49,11 +50,7 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
             <button class="button button-primary">Create tag</button>
         </form>
         <?php if (!empty($tags)) : ?>
-            <p>
-                <?php foreach ($tags as $tag) : ?>
-                    <span class="dbg-media-tag" style="background:<?php echo esc_attr($tag['color'] ?: '#f0f0f1'); ?>"><?php echo esc_html($tag['name']); ?></span>
-                <?php endforeach; ?>
-            </p>
+            <p><?php foreach ($tags as $tag) : ?><span class="dbg-media-tag" style="background:<?php echo esc_attr($tag['color'] ?: '#f0f0f1'); ?>"><?php echo esc_html($tag['name']); ?></span><?php endforeach; ?></p>
         <?php endif; ?>
     </div>
 
@@ -92,6 +89,7 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
             <input type="number" name="organisation_id" placeholder="Organisation ID" value="<?php echo esc_attr($filters['organisation_id'] ?: ''); ?>">
             <input type="number" name="project_id" placeholder="Project ID" value="<?php echo esc_attr($filters['project_id'] ?: ''); ?>">
             <select name="folder_id"><option value="0">All folders</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>" <?php selected($filters['folder_id'], (int) $folder['id']); ?>><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select>
+            <select name="tag_id"><option value="0">All tags</option><?php foreach ($tags as $tag) : ?><option value="<?php echo esc_attr($tag['id']); ?>" <?php selected($filters['tag_id'], (int) $tag['id']); ?>><?php echo esc_html($tag['name']); ?></option><?php endforeach; ?></select>
             <input type="number" name="asset_id" placeholder="Asset ID" value="<?php echo esc_attr($filters['asset_id'] ?: ''); ?>">
             <input type="text" name="mime_type" placeholder="MIME type" value="<?php echo esc_attr($filters['mime_type']); ?>">
             <select name="status"><option value="">All status</option><option value="active" <?php selected($filters['status'], 'active'); ?>>Active</option><option value="archived" <?php selected($filters['status'], 'archived'); ?>>Archived</option></select>
@@ -105,7 +103,7 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
 
     <div class="dbg-platform-panel">
         <h2>File records</h2>
-        <p><?php echo esc_html($pagination['total']); ?> file(s) · page <?php echo esc_html($pagination['page']); ?> / <?php echo esc_html($pagination['total_pages']); ?> · sorted by <?php echo esc_html($sort['sort_by']); ?> <?php echo esc_html($sort['sort_order']); ?></p>
+        <p><?php echo esc_html($pagination['total']); ?> file(s) · page <?php echo esc_html($pagination['page']); ?> / <?php echo esc_html($pagination['total_pages']); ?> · sorted by <?php echo esc_html($sort['sort_by']); ?> <?php echo esc_html($sort['sort_order']); ?><?php if ($filters['tag_id']) : ?> · tag filter #<?php echo esc_html($filters['tag_id']); ?><?php endif; ?></p>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <input type="hidden" name="action" value="dbg_bulk_media_action">
             <?php wp_nonce_field('dbg_bulk_media_action'); ?>
@@ -118,15 +116,7 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
                         <?php $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file'); $versions = $versionRepository->allForFile((int) $file['id']); $fileTags = $tagRepository->tagsForFile((int) $file['id']); $fileTagIds = array_map('intval', array_column($fileTags, 'id')); ?>
                         <tr>
                             <td><input class="dbg-file-select" type="checkbox" name="file_ids[]" value="<?php echo esc_attr($file['id']); ?>"></td><td><?php echo esc_html($file['id']); ?></td><td><?php echo wp_kses_post($previewService->render($file)); ?></td><td><?php echo esc_html($file['original_name']); ?></td>
-                            <td>
-                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
-                                    <input type="hidden" name="action" value="dbg_sync_file_tags"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_sync_file_tags'); ?>
-                                    <?php if (empty($tags)) : ?>—<?php else : ?>
-                                        <select name="tag_ids[]" multiple size="3"><?php foreach ($tags as $tag) : ?><option value="<?php echo esc_attr($tag['id']); ?>" <?php selected(in_array((int) $tag['id'], $fileTagIds, true)); ?>><?php echo esc_html($tag['name']); ?></option><?php endforeach; ?></select><button class="button">Save</button>
-                                    <?php endif; ?>
-                                </form>
-                                <?php foreach ($fileTags as $tag) : ?><span class="dbg-media-tag" style="background:<?php echo esc_attr($tag['color'] ?: '#f0f0f1'); ?>"><?php echo esc_html($tag['name']); ?></span><?php endforeach; ?>
-                            </td>
+                            <td><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_sync_file_tags"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_sync_file_tags'); ?><?php if (empty($tags)) : ?>—<?php else : ?><select name="tag_ids[]" multiple size="3"><?php foreach ($tags as $tag) : ?><option value="<?php echo esc_attr($tag['id']); ?>" <?php selected(in_array((int) $tag['id'], $fileTagIds, true)); ?>><?php echo esc_html($tag['name']); ?></option><?php endforeach; ?></select><button class="button">Save</button><?php endif; ?></form><?php foreach ($fileTags as $tag) : ?><span class="dbg-media-tag" style="background:<?php echo esc_attr($tag['color'] ?: '#f0f0f1'); ?>"><?php echo esc_html($tag['name']); ?></span><?php endforeach; ?></td>
                             <td><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_rename_file"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_rename_file'); ?><input type="text" name="original_name" value="<?php echo esc_attr($file['original_name']); ?>" size="18" required><button class="button">Rename</button></form></td>
                             <td><?php echo esc_html($file['folder_id'] ?? '0'); ?></td><td><?php echo esc_html($file['mime_type']); ?></td><td><?php echo esc_html(size_format((int) $file['size'])); ?></td><td><?php echo esc_html($file['status']); ?></td><td><a class="button" href="<?php echo esc_url($downloadUrl); ?>">Download</a></td>
                             <td><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_move_file_folder"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_move_file_folder'); ?><select name="folder_id"><option value="0">No folder</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>" <?php selected((int) ($file['folder_id'] ?? 0), (int) $folder['id']); ?>><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select><button class="button">Move</button></form></td>
