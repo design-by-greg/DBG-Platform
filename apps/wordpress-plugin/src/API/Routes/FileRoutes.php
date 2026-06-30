@@ -55,6 +55,8 @@ class FileRoutes
             'tag_id' => absint($request->get_param('tag_id')),
             'tag_ids' => is_array($tagIds) ? array_map('absint', $tagIds) : [],
             'is_favorite' => $favorite === null ? '' : absint($favorite),
+            'meta_key' => sanitize_key($request->get_param('meta_key') ?? ''),
+            'meta_value' => sanitize_text_field($request->get_param('meta_value') ?? ''),
             'mime_type' => sanitize_text_field($request->get_param('mime_type') ?? ''),
             'status' => sanitize_key($request->get_param('status') ?? ''),
             'search' => sanitize_text_field($request->get_param('search') ?? ''),
