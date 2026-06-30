@@ -255,6 +255,8 @@ class FormHandler
     {
         $validator = (new FormValidator())
             ->required('dbg_organisation_name', 'Organisation name', $_POST)
+            ->minLength('dbg_organisation_name', 'Organisation name', 2, $_POST)
+            ->maxLength('dbg_organisation_name', 'Organisation name', 255, $_POST)
             ->allowedValue('dbg_organisation_type', 'Organisation type', ['company', 'club', 'association', 'public_body', 'partner'], $_POST);
         if (!$validator->passes()) {
             $this->redirect('dbg-platform-organisations', 'error', $validator->errors());
