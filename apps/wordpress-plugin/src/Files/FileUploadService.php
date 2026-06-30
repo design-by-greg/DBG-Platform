@@ -56,6 +56,7 @@ class FileUploadService
 
         $compression = (new ImageCompressionService())->compress($destination, $mime);
         clearstatcache(true, $destination);
+        $fileHash = file_exists($destination) ? hash_file('sha256', $destination) : null;
 
         $relativePath = 'dbg-platform/org-' . $organisationId . '/project-' . $projectId . '/' . $filename;
 
@@ -65,6 +66,7 @@ class FileUploadService
             'filename' => $filename,
             'mime_type' => $mime,
             'size' => file_exists($destination) ? (int) filesize($destination) : (int) $file['size'],
+            'file_hash' => $fileHash,
             'path' => $relativePath,
             'url' => trailingslashit($baseUrl) . 'org-' . $organisationId . '/project-' . $projectId . '/' . $filename,
             'organisation_id' => $organisationId,
