@@ -27,6 +27,16 @@
     margin-top: 0;
 }
 
+.dbg-media-tag {
+    display: inline-block;
+    margin: 2px 4px 2px 0;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid #c3c4c7;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
 .dbg-dropzone {
     border: 2px dashed #8c8f94;
     border-radius: 10px;
