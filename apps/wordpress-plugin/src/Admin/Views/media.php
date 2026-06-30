@@ -6,6 +6,7 @@ if (!defined('ABSPATH')) {
 $fileRepository = new \DBGPlatform\Database\Repositories\FileRecordRepository();
 $folderRepository = new \DBGPlatform\Database\Repositories\MediaFolderRepository();
 $versionRepository = new \DBGPlatform\Database\Repositories\FileVersionRepository();
+$tagRepository = new \DBGPlatform\Database\Repositories\MediaTagRepository();
 $previewService = new \DBGPlatform\Files\FilePreviewService();
 $filters = [
     'organisation_id' => absint($_GET['organisation_id'] ?? 0),
@@ -25,6 +26,7 @@ $files = $result['items'];
 $pagination = $result['pagination'];
 $sort = $result['sort'];
 $folders = $folderRepository->all(['status' => 'active']);
+$tags = $tagRepository->all('active');
 $basePageUrl = admin_url('admin.php?page=dbg-platform-media');
 $sortLink = function (string $key) use ($basePageUrl, $sort) {
     $nextOrder = ($sort['sort_by'] === $key && $sort['sort_order'] === 'ASC') ? 'DESC' : 'ASC';
@@ -33,9 +35,27 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
 ?>
 <div class="wrap dbg-platform-admin">
     <h1>Media</h1>
-    <p>Upload, filter, rename, folder, version, bulk manage, sort and review files linked to DBG Platform assets.</p>
+    <p>Upload, filter, rename, folder, version, tags, bulk manage, sort and review files linked to DBG Platform assets.</p>
 
     <?php include DBG_PLATFORM_PLUGIN_DIR . 'src/Admin/Views/notices.php'; ?>
+
+    <div class="dbg-platform-panel">
+        <h2>Create tag</h2>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <input type="hidden" name="action" value="dbg_create_media_tag">
+            <?php wp_nonce_field('dbg_create_media_tag'); ?>
+            <input type="text" name="tag_name" placeholder="Tag name" required>
+            <input type="color" name="tag_color" value="#2271b1">
+            <button class="button button-primary">Create tag</button>
+        </form>
+        <?php if (!empty($tags)) : ?>
+            <p>
+                <?php foreach ($tags as $tag) : ?>
+                    <span class="dbg-media-tag" style="background:<?php echo esc_attr($tag['color'] ?: '#f0f0f1'); ?>"><?php echo esc_html($tag['name']); ?></span>
+                <?php endforeach; ?>
+            </p>
+        <?php endif; ?>
+    </div>
 
     <div class="dbg-platform-panel">
         <h2>Create folder</h2>
@@ -91,13 +111,22 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
             <?php wp_nonce_field('dbg_bulk_media_action'); ?>
             <p><select name="bulk_action" required><option value="">Bulk action</option><option value="archive">Archive selected</option><option value="move">Move selected</option></select><select name="bulk_folder_id"><option value="0">No folder</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>"><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select><button class="button">Apply</button></p>
             <table class="widefat striped">
-                <thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('.dbg-file-select').forEach(cb => cb.checked = this.checked);"></th><th><a href="<?php echo $sortLink('id'); ?>">ID</a></th><th>Preview</th><th><a href="<?php echo $sortLink('name'); ?>">Name</a></th><th>Rename</th><th>Folder</th><th><a href="<?php echo $sortLink('type'); ?>">Type</a></th><th><a href="<?php echo $sortLink('size'); ?>">Size</a></th><th><a href="<?php echo $sortLink('status'); ?>">Status</a></th><th>Download</th><th>Move</th><th>New version</th><th>Versions</th><th>Archive</th></tr></thead>
+                <thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('.dbg-file-select').forEach(cb => cb.checked = this.checked);"></th><th><a href="<?php echo $sortLink('id'); ?>">ID</a></th><th>Preview</th><th><a href="<?php echo $sortLink('name'); ?>">Name</a></th><th>Tags</th><th>Rename</th><th>Folder</th><th><a href="<?php echo $sortLink('type'); ?>">Type</a></th><th><a href="<?php echo $sortLink('size'); ?>">Size</a></th><th><a href="<?php echo $sortLink('status'); ?>">Status</a></th><th>Download</th><th>Move</th><th>New version</th><th>Versions</th><th>Archive</th></tr></thead>
                 <tbody>
-                <?php if (empty($files)) : ?><tr><td colspan="14">No file records found.</td></tr><?php else : ?>
+                <?php if (empty($files)) : ?><tr><td colspan="15">No file records found.</td></tr><?php else : ?>
                     <?php foreach ($files as $file) : ?>
-                        <?php $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file'); $versions = $versionRepository->allForFile((int) $file['id']); ?>
+                        <?php $downloadUrl = wp_nonce_url(admin_url('admin-post.php?action=dbg_download_file&file_id=' . absint($file['id'])), 'dbg_download_file'); $versions = $versionRepository->allForFile((int) $file['id']); $fileTags = $tagRepository->tagsForFile((int) $file['id']); $fileTagIds = array_map('intval', array_column($fileTags, 'id')); ?>
                         <tr>
                             <td><input class="dbg-file-select" type="checkbox" name="file_ids[]" value="<?php echo esc_attr($file['id']); ?>"></td><td><?php echo esc_html($file['id']); ?></td><td><?php echo wp_kses_post($previewService->render($file)); ?></td><td><?php echo esc_html($file['original_name']); ?></td>
+                            <td>
+                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                                    <input type="hidden" name="action" value="dbg_sync_file_tags"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_sync_file_tags'); ?>
+                                    <?php if (empty($tags)) : ?>—<?php else : ?>
+                                        <select name="tag_ids[]" multiple size="3"><?php foreach ($tags as $tag) : ?><option value="<?php echo esc_attr($tag['id']); ?>" <?php selected(in_array((int) $tag['id'], $fileTagIds, true)); ?>><?php echo esc_html($tag['name']); ?></option><?php endforeach; ?></select><button class="button">Save</button>
+                                    <?php endif; ?>
+                                </form>
+                                <?php foreach ($fileTags as $tag) : ?><span class="dbg-media-tag" style="background:<?php echo esc_attr($tag['color'] ?: '#f0f0f1'); ?>"><?php echo esc_html($tag['name']); ?></span><?php endforeach; ?>
+                            </td>
                             <td><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_rename_file"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_rename_file'); ?><input type="text" name="original_name" value="<?php echo esc_attr($file['original_name']); ?>" size="18" required><button class="button">Rename</button></form></td>
                             <td><?php echo esc_html($file['folder_id'] ?? '0'); ?></td><td><?php echo esc_html($file['mime_type']); ?></td><td><?php echo esc_html(size_format((int) $file['size'])); ?></td><td><?php echo esc_html($file['status']); ?></td><td><a class="button" href="<?php echo esc_url($downloadUrl); ?>">Download</a></td>
                             <td><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><input type="hidden" name="action" value="dbg_move_file_folder"><input type="hidden" name="file_id" value="<?php echo esc_attr($file['id']); ?>"><?php wp_nonce_field('dbg_move_file_folder'); ?><select name="folder_id"><option value="0">No folder</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>" <?php selected((int) ($file['folder_id'] ?? 0), (int) $folder['id']); ?>><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select><button class="button">Move</button></form></td>
