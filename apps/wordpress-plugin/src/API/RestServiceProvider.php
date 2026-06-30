@@ -27,6 +27,8 @@ class RestServiceProvider
     public function registerRoutes(): void
     {
         (new IdentityRoutes())->register();
+        $routeClass = 'DBGPlatform\\API\\Routes\\OrganisationContactRoutes';
+        if (class_exists($routeClass)) { (new $routeClass())->register(); }
         (new ProjectRoutes())->register();
         (new AssetRoutes())->register();
         (new CommerceRoutes())->register();
