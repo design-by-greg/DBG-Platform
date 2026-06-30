@@ -36,6 +36,20 @@ class ApiValidator
         return $this;
     }
 
+    public function email(string $field, string $label, array $source): self
+    {
+        if (!array_key_exists($field, $source) || trim((string) $source[$field]) === '') { return $this; }
+        if (!is_email((string) $source[$field])) { $this->errors[] = $label . ' must be a valid email address.'; }
+        return $this;
+    }
+
+    public function booleanish(string $field, string $label, array $source): self
+    {
+        if (!array_key_exists($field, $source)) { return $this; }
+        if (!in_array($source[$field], [true, false, 0, 1, '0', '1'], true)) { $this->errors[] = $label . ' must be true or false.'; }
+        return $this;
+    }
+
     public function allowedValue(string $field, string $label, array $allowed, array $source): self
     {
         if (!array_key_exists($field, $source) || $source[$field] === '') { return $this; }
