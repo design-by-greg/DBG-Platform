@@ -9,6 +9,7 @@ class AdminServiceProvider
         add_action('admin_menu', [$this, 'registerMenu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
         (new OrganisationAdminHandler())->register();
+        (new OrganisationContactAdminHandler())->register();
         (new MediaAjaxUploadHandler())->register();
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
@@ -27,6 +28,7 @@ class AdminServiceProvider
         add_menu_page('DBG Platform', 'DBG Platform', 'manage_options', 'dbg-platform', [$this, 'renderDashboard'], 'dashicons-admin-generic');
         add_submenu_page('dbg-platform', 'Dashboard', 'Dashboard', 'manage_options', 'dbg-platform', [$this, 'renderDashboard']);
         add_submenu_page('dbg-platform', 'Organisations', 'Organisations', 'manage_options', 'dbg-platform-organisations', [$this, 'renderOrganisations']);
+        add_submenu_page('dbg-platform', 'Organisation Contacts', 'Organisation Contacts', 'manage_options', 'dbg-platform-organisation-contacts', [$this, 'renderOrganisationContacts']);
         add_submenu_page('dbg-platform', 'Projects', 'Projects', 'manage_options', 'dbg-platform-projects', [$this, 'renderProjects']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
         add_submenu_page('dbg-platform', 'Media Health', 'Media Health', 'manage_options', 'dbg-platform-media-health', [$this, 'renderMediaHealth']);
@@ -53,6 +55,7 @@ class AdminServiceProvider
 
     public function renderDashboard(): void { $this->view('dashboard'); }
     public function renderOrganisations(): void { $this->view('organisations'); }
+    public function renderOrganisationContacts(): void { $this->view('organisation-contacts'); }
     public function renderProjects(): void { $this->view('projects'); }
     public function renderAssets(): void { $this->view('assets'); }
     public function renderMediaHealth(): void { $this->view('media-health'); }
