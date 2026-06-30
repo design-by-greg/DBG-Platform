@@ -5,6 +5,7 @@ namespace DBGPlatform\API;
 use DBGPlatform\API\Routes\AssetRoutes;
 use DBGPlatform\API\Routes\AuditRoutes;
 use DBGPlatform\API\Routes\CommerceRoutes;
+use DBGPlatform\API\Routes\FileMetadataRoutes;
 use DBGPlatform\API\Routes\FileRoutes;
 use DBGPlatform\API\Routes\IdentityRoutes;
 use DBGPlatform\API\Routes\MediaFolderRoutes;
@@ -30,5 +31,6 @@ class RestServiceProvider
         (new FileRoutes())->register();
         (new MediaFolderRoutes())->register();
         (new MediaTagRoutes())->register();
+        (new FileMetadataRoutes())->register();
     }
 }
