@@ -44,12 +44,24 @@ class FileRecordRepository
         global $wpdb;
         $where = [];
         $params = [];
+        $metadataTable = $wpdb->prefix . 'dbg_file_metadata';
 
         if (!empty($filters['organisation_id'])) { $where[] = 'organisation_id = %d'; $params[] = absint($filters['organisation_id']); }
         if (!empty($filters['project_id'])) { $where[] = 'project_id = %d'; $params[] = absint($filters['project_id']); }
         if (!empty($filters['folder_id'])) { $where[] = 'folder_id = %d'; $params[] = absint($filters['folder_id']); }
         if (!empty($filters['asset_id'])) { $where[] = 'asset_id = %d'; $params[] = absint($filters['asset_id']); }
         if (isset($filters['is_favorite']) && $filters['is_favorite'] !== '') { $where[] = 'is_favorite = %d'; $params[] = absint($filters['is_favorite']); }
+        if (!empty($filters['meta_key'])) { $where[] = "id IN (SELECT file_record_id FROM {$metadataTable} WHERE meta_key = %s)"; $params[] = sanitize_key($filters['meta_key']); }
+        if (!empty($filters['meta_value'])) { $where[] = "id IN (SELECT file_record_id FROM {$metadataTable} WHERE meta_value LIKE %s)"; $params[] = '%' . $wpdb->esc_like(sanitize_text_field($filters['meta_value'])) . '%'; }
+        if (!empty($filters['meta_key']) && !empty($filters['meta_value'])) {
+            array_pop($where);
+            array_pop($where);
+            array_pop($params);
+            array_pop($params);
+            $where[] = "id IN (SELECT file_record_id FROM {$metadataTable} WHERE meta_key = %s AND meta_value LIKE %s)";
+            $params[] = sanitize_key($filters['meta_key']);
+            $params[] = '%' . $wpdb->esc_like(sanitize_text_field($filters['meta_value'])) . '%';
+        }
         if (!empty($filters['tag_id'])) { $where[] = "id IN (SELECT file_record_id FROM {$wpdb->prefix}dbg_file_tag_map WHERE tag_id = %d)"; $params[] = absint($filters['tag_id']); }
         if (!empty($filters['tag_ids']) && is_array($filters['tag_ids'])) {
             $tagIds = array_values(array_unique(array_filter(array_map('absint', $filters['tag_ids']))));
