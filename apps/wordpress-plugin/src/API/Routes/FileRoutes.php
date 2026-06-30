@@ -55,6 +55,8 @@ class FileRoutes
             'mime_type' => sanitize_text_field($request->get_param('mime_type') ?? ''),
             'status' => sanitize_key($request->get_param('status') ?? ''),
             'search' => sanitize_text_field($request->get_param('search') ?? ''),
+            'sort_by' => sanitize_key($request->get_param('sort_by') ?? 'id'),
+            'sort_order' => sanitize_key($request->get_param('sort_order') ?? 'DESC'),
         ];
 
         $page = absint($request->get_param('page') ?? 1);
@@ -64,6 +66,7 @@ class FileRoutes
         return ApiResponse::ok([
             'data' => $result['items'],
             'pagination' => $result['pagination'],
+            'sort' => $result['sort'],
             'filters' => $filters,
         ]);
     }
