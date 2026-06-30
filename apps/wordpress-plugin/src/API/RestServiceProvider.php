@@ -12,6 +12,7 @@ use DBGPlatform\API\Routes\FileOrphanRoutes;
 use DBGPlatform\API\Routes\FileRoutes;
 use DBGPlatform\API\Routes\IdentityRoutes;
 use DBGPlatform\API\Routes\MediaFolderRoutes;
+use DBGPlatform\API\Routes\MediaHealthRoutes;
 use DBGPlatform\API\Routes\MediaTagRoutes;
 use DBGPlatform\API\Routes\ProjectRoutes;
 use DBGPlatform\API\Routes\SettingsRoutes;
@@ -38,5 +39,6 @@ class RestServiceProvider
         (new FileDuplicateRoutes())->register();
         (new FileOrphanRoutes())->register();
         (new FileBrokenLinkRoutes())->register();
+        (new MediaHealthRoutes())->register();
     }
 }
