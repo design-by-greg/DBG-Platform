@@ -11,7 +11,7 @@ class Migrator
         $charset = $wpdb->get_charset_collate();
         $prefix = $wpdb->prefix . 'dbg_';
         foreach ($this->tables($prefix, $charset) as $sql) { dbDelta($sql); }
-        update_option('dbg_platform_db_version', '0.1.9');
+        update_option('dbg_platform_db_version', '0.2.0');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -19,12 +19,64 @@ class Migrator
         return [
             "CREATE TABLE {$prefix}organisations (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                uuid CHAR(36) NULL,
                 name VARCHAR(255) NOT NULL,
+                legal_name VARCHAR(255) NULL,
                 type VARCHAR(64) NOT NULL,
+                status VARCHAR(64) NOT NULL DEFAULT 'active',
+                vat_number VARCHAR(64) NULL,
+                siret VARCHAR(32) NULL,
+                ape VARCHAR(32) NULL,
+                email VARCHAR(190) NULL,
+                phone VARCHAR(64) NULL,
+                website VARCHAR(255) NULL,
+                address TEXT NULL,
+                postal_code VARCHAR(32) NULL,
+                city VARCHAR(120) NULL,
+                country VARCHAR(120) NULL,
+                logo_asset_id BIGINT UNSIGNED NULL,
+                notes TEXT NULL,
+                created_by BIGINT UNSIGNED NULL,
+                updated_by BIGINT UNSIGNED NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                archived_at DATETIME NULL,
+                PRIMARY KEY (id), UNIQUE KEY uuid (uuid), KEY type (type), KEY status (status), KEY city (city), KEY created_by (created_by), KEY updated_by (updated_by)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}organisation_contacts (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                organisation_id BIGINT UNSIGNED NOT NULL,
+                first_name VARCHAR(120) NOT NULL,
+                last_name VARCHAR(120) NOT NULL,
+                job_title VARCHAR(190) NULL,
+                email VARCHAR(190) NULL,
+                phone VARCHAR(64) NULL,
+                mobile VARCHAR(64) NULL,
+                department VARCHAR(120) NULL,
+                is_primary TINYINT(1) NOT NULL DEFAULT 0,
+                notes TEXT NULL,
                 status VARCHAR(64) NOT NULL DEFAULT 'active',
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
-                PRIMARY KEY (id), KEY type (type), KEY status (status)
+                archived_at DATETIME NULL,
+                PRIMARY KEY (id), KEY organisation_id (organisation_id), KEY email (email), KEY is_primary (is_primary), KEY status (status)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}organisation_users (
+                organisation_id BIGINT UNSIGNED NOT NULL,
+                user_id BIGINT UNSIGNED NOT NULL,
+                role VARCHAR(64) NOT NULL DEFAULT 'member',
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (organisation_id, user_id), KEY organisation_id (organisation_id), KEY user_id (user_id), KEY role (role)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}organisation_settings (
+                organisation_id BIGINT UNSIGNED NOT NULL,
+                default_language VARCHAR(16) NOT NULL DEFAULT 'fr',
+                default_currency VARCHAR(8) NOT NULL DEFAULT 'EUR',
+                default_project_status VARCHAR(64) NOT NULL DEFAULT 'draft',
+                branding_enabled TINYINT(1) NOT NULL DEFAULT 1,
+                settings_json LONGTEXT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (organisation_id)
             ) {$charset};",
             "CREATE TABLE {$prefix}projects (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
