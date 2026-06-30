@@ -42,6 +42,14 @@ class FileRecordRepository
         return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}dbg_file_records WHERE file_hash = %s AND status != 'archived' ORDER BY id DESC", sanitize_text_field($hash)), ARRAY_A) ?: [];
     }
 
+    public function orphanRecords(): array
+    {
+        global $wpdb;
+        $files = $wpdb->prefix . 'dbg_file_records';
+        $assets = $wpdb->prefix . 'dbg_assets';
+        return $wpdb->get_results("SELECT f.*, CASE WHEN f.asset_id IS NULL OR f.asset_id = 0 THEN 'missing_asset_id' ELSE 'asset_not_found' END as orphan_reason FROM {$files} f LEFT JOIN {$assets} a ON a.id = f.asset_id WHERE f.status != 'archived' AND (f.asset_id IS NULL OR f.asset_id = 0 OR a.id IS NULL) ORDER BY f.id DESC", ARRAY_A) ?: [];
+    }
+
     private function whereSql(array $filters): array
     {
         global $wpdb;
@@ -50,6 +58,7 @@ class FileRecordRepository
         if (!empty($filters['project_id'])) { $where[] = 'project_id = %d'; $params[] = absint($filters['project_id']); }
         if (!empty($filters['folder_id'])) { $where[] = 'folder_id = %d'; $params[] = absint($filters['folder_id']); }
         if (!empty($filters['asset_id'])) { $where[] = 'asset_id = %d'; $params[] = absint($filters['asset_id']); }
+        if (!empty($filters['only_orphans'])) { $where[] = "(asset_id IS NULL OR asset_id = 0 OR asset_id NOT IN (SELECT id FROM {$wpdb->prefix}dbg_assets))"; }
         if (isset($filters['is_favorite']) && $filters['is_favorite'] !== '') { $where[] = 'is_favorite = %d'; $params[] = absint($filters['is_favorite']); }
         if (!empty($filters['file_hash'])) { $where[] = 'file_hash = %s'; $params[] = sanitize_text_field($filters['file_hash']); }
         if (!empty($filters['only_duplicates'])) { $where[] = "file_hash IN (SELECT file_hash FROM {$wpdb->prefix}dbg_file_records WHERE file_hash IS NOT NULL AND file_hash != '' GROUP BY file_hash HAVING COUNT(*) > 1)"; }
