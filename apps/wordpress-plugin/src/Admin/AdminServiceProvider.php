@@ -15,6 +15,7 @@ class AdminServiceProvider
         (new MediaTagAdminHandler())->register();
         (new MediaFavoriteHandler())->register();
         (new MediaMetadataAdminHandler())->register();
+        (new MediaDuplicateCleanupHandler())->register();
         (new FormHandler())->register();
     }
 
