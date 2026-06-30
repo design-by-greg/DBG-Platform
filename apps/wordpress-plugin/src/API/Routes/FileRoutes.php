@@ -39,6 +39,9 @@ class FileRoutes
             ['methods' => 'PATCH', 'callback' => [$this, 'updateFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
             ['methods' => 'DELETE', 'callback' => [$this, 'archiveFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
         ]);
+        register_rest_route('dbg/v1', '/files/(?P<id>\d+)/restore', [
+            ['methods' => 'PATCH', 'callback' => [$this, 'restoreFile'], 'permission_callback' => [$this->gate, 'canEditPosts']],
+        ]);
     }
 
     public function listFiles(WP_REST_Request $request): WP_REST_Response
@@ -46,7 +49,6 @@ class FileRoutes
         $tagIds = $request->get_param('tag_ids');
         if (is_string($tagIds)) { $tagIds = array_filter(array_map('trim', explode(',', $tagIds))); }
         $favorite = $request->get_param('is_favorite');
-
         $filters = [
             'organisation_id' => absint($request->get_param('organisation_id')),
             'project_id' => absint($request->get_param('project_id')),
@@ -57,13 +59,14 @@ class FileRoutes
             'is_favorite' => $favorite === null ? '' : absint($favorite),
             'meta_key' => sanitize_key($request->get_param('meta_key') ?? ''),
             'meta_value' => sanitize_text_field($request->get_param('meta_value') ?? ''),
+            'file_hash' => sanitize_text_field($request->get_param('file_hash') ?? ''),
+            'only_duplicates' => absint($request->get_param('only_duplicates')),
             'mime_type' => sanitize_text_field($request->get_param('mime_type') ?? ''),
             'status' => sanitize_key($request->get_param('status') ?? ''),
             'search' => sanitize_text_field($request->get_param('search') ?? ''),
             'sort_by' => sanitize_key($request->get_param('sort_by') ?? 'id'),
             'sort_order' => sanitize_key($request->get_param('sort_order') ?? 'DESC'),
         ];
-
         $result = (new FileRecordRepository())->paginated($filters, absint($request->get_param('page') ?? 1), absint($request->get_param('per_page') ?? $request->get_param('limit') ?? 25));
         return ApiResponse::ok(['data' => $result['items'], 'pagination' => $result['pagination'], 'sort' => $result['sort'], 'filters' => $filters]);
     }
@@ -81,24 +84,9 @@ class FileRoutes
         $repository = new FileRecordRepository();
         $updated = false;
         $changes = [];
-
-        if (array_key_exists('folder_id', $payload) || $request->get_param('folder_id') !== null) {
-            $folderId = absint($payload['folder_id'] ?? $request->get_param('folder_id'));
-            $updated = $repository->moveToFolder($fileId, $folderId) || $updated;
-            $changes['folder_id'] = $folderId;
-        }
-        if (array_key_exists('is_favorite', $payload) || $request->get_param('is_favorite') !== null) {
-            $favorite = (bool) absint($payload['is_favorite'] ?? $request->get_param('is_favorite'));
-            $updated = $repository->setFavorite($fileId, $favorite) || $updated;
-            $changes['is_favorite'] = $favorite ? 1 : 0;
-        }
-        if (!empty($payload['original_name']) || $request->get_param('original_name') !== null) {
-            $name = sanitize_file_name((string) ($payload['original_name'] ?? $request->get_param('original_name')));
-            if ($name === '') { return ApiResponse::validation(['original_name is required.']); }
-            $updated = $repository->rename($fileId, $name) || $updated;
-            $changes['original_name'] = $name;
-        }
-
+        if (array_key_exists('folder_id', $payload) || $request->get_param('folder_id') !== null) { $folderId = absint($payload['folder_id'] ?? $request->get_param('folder_id')); $updated = $repository->moveToFolder($fileId, $folderId) || $updated; $changes['folder_id'] = $folderId; }
+        if (array_key_exists('is_favorite', $payload) || $request->get_param('is_favorite') !== null) { $favorite = (bool) absint($payload['is_favorite'] ?? $request->get_param('is_favorite')); $updated = $repository->setFavorite($fileId, $favorite) || $updated; $changes['is_favorite'] = $favorite ? 1 : 0; }
+        if (!empty($payload['original_name']) || $request->get_param('original_name') !== null) { $name = sanitize_file_name((string) ($payload['original_name'] ?? $request->get_param('original_name'))); if ($name === '') { return ApiResponse::validation(['original_name is required.']); } $updated = $repository->rename($fileId, $name) || $updated; $changes['original_name'] = $name; }
         $this->audit->record('updated', 'file', $fileId, ['updated' => $updated, 'changes' => $changes]);
         return ApiResponse::ok(['updated' => $updated, 'changes' => $changes]);
     }
@@ -110,8 +98,8 @@ class FileRoutes
         $action = sanitize_key($payload['action'] ?? '');
         if (empty($ids)) { return ApiResponse::validation(['ids are required.']); }
         $repository = new FileRecordRepository();
-        $count = 0;
         if ($action === 'archive') { $count = $repository->bulkArchive($ids); }
+        elseif ($action === 'restore') { $count = $repository->bulkRestore($ids); }
         elseif ($action === 'move') { $count = $repository->bulkMoveToFolder($ids, absint($payload['folder_id'] ?? 0)); }
         else { return ApiResponse::validation(['Unsupported bulk action.']); }
         $this->audit->record('bulk_' . $action, 'file', null, ['ids' => $ids, 'count' => $count, 'folder_id' => absint($payload['folder_id'] ?? 0)]);
@@ -123,6 +111,13 @@ class FileRoutes
         $archived = (new FileRecordRepository())->archive((int) $request['id']);
         $this->audit->record('archived', 'file', (int) $request['id'], ['archived' => $archived]);
         return ApiResponse::ok(['archived' => $archived]);
+    }
+
+    public function restoreFile(WP_REST_Request $request): WP_REST_Response
+    {
+        $restored = (new FileRecordRepository())->restore((int) $request['id']);
+        $this->audit->record('restored', 'file', (int) $request['id'], ['restored' => $restored]);
+        return ApiResponse::ok(['restored' => $restored]);
     }
 
     public function uploadFile(WP_REST_Request $request): WP_REST_Response
@@ -140,8 +135,7 @@ class FileRoutes
             if (!empty($thumbnail['success'])) { $result['thumbnail_path'] = $thumbnail['thumbnail_path']; $result['thumbnail_url'] = $thumbnail['thumbnail_url']; }
             $assetId = (new AssetRepository())->create(['organisation_id' => $context['organisation_id'], 'project_id' => $context['project_id'], 'type' => 'document', 'name' => $result['original_name']]);
             $result['asset_id'] = $assetId; $result['folder_id'] = $folderId; $result['file_record_id'] = (new FileRecordRepository())->create($result);
-            $this->audit->record('uploaded', 'file', $result['file_record_id'], $result);
-            $uploaded[] = $result;
+            $this->audit->record('uploaded', 'file', $result['file_record_id'], $result); $uploaded[] = $result;
         }
         if (empty($uploaded) && !empty($errors)) { return ApiResponse::validation($errors); }
         return ApiResponse::created(['message' => count($uploaded) . ' file(s) uploaded', 'data' => $uploaded, 'errors' => $errors]);
