@@ -47,11 +47,18 @@ class FileRoutes
 
     public function listFiles(WP_REST_Request $request): WP_REST_Response
     {
+        $tagIds = $request->get_param('tag_ids');
+        if (is_string($tagIds)) {
+            $tagIds = array_filter(array_map('trim', explode(',', $tagIds)));
+        }
+
         $filters = [
             'organisation_id' => absint($request->get_param('organisation_id')),
             'project_id' => absint($request->get_param('project_id')),
             'folder_id' => absint($request->get_param('folder_id')),
             'asset_id' => absint($request->get_param('asset_id')),
+            'tag_id' => absint($request->get_param('tag_id')),
+            'tag_ids' => is_array($tagIds) ? array_map('absint', $tagIds) : [],
             'mime_type' => sanitize_text_field($request->get_param('mime_type') ?? ''),
             'status' => sanitize_key($request->get_param('status') ?? ''),
             'search' => sanitize_text_field($request->get_param('search') ?? ''),
