@@ -27,6 +27,7 @@ class AdminServiceProvider
         add_submenu_page('dbg-platform', 'Organisations', 'Organisations', 'manage_options', 'dbg-platform-organisations', [$this, 'renderOrganisations']);
         add_submenu_page('dbg-platform', 'Projects', 'Projects', 'manage_options', 'dbg-platform-projects', [$this, 'renderProjects']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
+        add_submenu_page('dbg-platform', 'Media Health', 'Media Health', 'manage_options', 'dbg-platform-media-health', [$this, 'renderMediaHealth']);
         add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
         add_submenu_page('dbg-platform', 'Media Restore', 'Media Restore', 'manage_options', 'dbg-platform-media-trash', [$this, 'renderMediaTrash']);
         add_submenu_page('dbg-platform', 'Media Orphans', 'Media Orphans', 'manage_options', 'dbg-platform-media-orphans', [$this, 'renderMediaOrphans']);
@@ -51,6 +52,7 @@ class AdminServiceProvider
     public function renderOrganisations(): void { $this->view('organisations'); }
     public function renderProjects(): void { $this->view('projects'); }
     public function renderAssets(): void { $this->view('assets'); }
+    public function renderMediaHealth(): void { $this->view('media-health'); }
     public function renderMedia(): void { $this->view('media'); }
     public function renderMediaTrash(): void { $this->view('media-trash'); }
     public function renderMediaOrphans(): void { $this->view('media-orphans'); }
