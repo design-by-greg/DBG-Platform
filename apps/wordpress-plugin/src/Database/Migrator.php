@@ -11,7 +11,7 @@ class Migrator
         $charset = $wpdb->get_charset_collate();
         $prefix = $wpdb->prefix . 'dbg_';
         foreach ($this->tables($prefix, $charset) as $sql) { dbDelta($sql); }
-        update_option('dbg_platform_db_version', '0.1.8');
+        update_option('dbg_platform_db_version', '0.1.9');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -94,6 +94,7 @@ class Migrator
                 filename VARCHAR(255) NOT NULL,
                 mime_type VARCHAR(128) NOT NULL,
                 size BIGINT UNSIGNED NOT NULL DEFAULT 0,
+                file_hash CHAR(64) NULL,
                 path TEXT NOT NULL,
                 url TEXT NOT NULL,
                 thumbnail_path TEXT NULL,
@@ -102,7 +103,7 @@ class Migrator
                 status VARCHAR(64) NOT NULL DEFAULT 'active',
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
-                PRIMARY KEY (id), KEY asset_id (asset_id), KEY organisation_id (organisation_id), KEY project_id (project_id), KEY folder_id (folder_id), KEY is_favorite (is_favorite), KEY mime_type (mime_type), KEY status (status)
+                PRIMARY KEY (id), KEY asset_id (asset_id), KEY organisation_id (organisation_id), KEY project_id (project_id), KEY folder_id (folder_id), KEY file_hash (file_hash), KEY is_favorite (is_favorite), KEY mime_type (mime_type), KEY status (status)
             ) {$charset};",
             "CREATE TABLE {$prefix}file_versions (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
