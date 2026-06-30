@@ -12,6 +12,7 @@ class AdminServiceProvider
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
         (new MediaBulkActionHandler())->register();
+        (new MediaTagAdminHandler())->register();
         (new FormHandler())->register();
     }
 
