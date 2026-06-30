@@ -17,7 +17,7 @@ class Migrator
             dbDelta($sql);
         }
 
-        update_option('dbg_platform_db_version', '0.1.5');
+        update_option('dbg_platform_db_version', '0.1.6');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -80,6 +80,28 @@ class Migrator
                 KEY parent_id (parent_id),
                 KEY slug (slug),
                 KEY status (status)
+            ) {$charset};",
+
+            "CREATE TABLE {$prefix}media_tags (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(120) NOT NULL,
+                slug VARCHAR(140) NOT NULL,
+                color VARCHAR(24) NULL,
+                status VARCHAR(64) NOT NULL DEFAULT 'active',
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY slug (slug),
+                KEY status (status)
+            ) {$charset};",
+
+            "CREATE TABLE {$prefix}file_tag_map (
+                file_record_id BIGINT UNSIGNED NOT NULL,
+                tag_id BIGINT UNSIGNED NOT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (file_record_id, tag_id),
+                KEY file_record_id (file_record_id),
+                KEY tag_id (tag_id)
             ) {$charset};",
 
             "CREATE TABLE {$prefix}file_records (
