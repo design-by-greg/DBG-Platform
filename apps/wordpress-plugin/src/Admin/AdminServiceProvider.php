@@ -30,6 +30,7 @@ class AdminServiceProvider
         add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
         add_submenu_page('dbg-platform', 'Media Restore', 'Media Restore', 'manage_options', 'dbg-platform-media-trash', [$this, 'renderMediaTrash']);
         add_submenu_page('dbg-platform', 'Media Orphans', 'Media Orphans', 'manage_options', 'dbg-platform-media-orphans', [$this, 'renderMediaOrphans']);
+        add_submenu_page('dbg-platform', 'Media Broken Links', 'Media Broken Links', 'manage_options', 'dbg-platform-media-broken-links', [$this, 'renderMediaBrokenLinks']);
         add_submenu_page('dbg-platform', 'Media Metadata', 'Media Metadata', 'manage_options', 'dbg-platform-media-metadata', [$this, 'renderMediaMetadata']);
         add_submenu_page('dbg-platform', 'Media Duplicates', 'Media Duplicates', 'manage_options', 'dbg-platform-media-duplicates', [$this, 'renderMediaDuplicates']);
         add_submenu_page('dbg-platform', 'Audit Logs', 'Audit Logs', 'manage_options', 'dbg-platform-audit-logs', [$this, 'renderAuditLogs']);
@@ -53,6 +54,7 @@ class AdminServiceProvider
     public function renderMedia(): void { $this->view('media'); }
     public function renderMediaTrash(): void { $this->view('media-trash'); }
     public function renderMediaOrphans(): void { $this->view('media-orphans'); }
+    public function renderMediaBrokenLinks(): void { $this->view('media-broken-links'); }
     public function renderMediaMetadata(): void { $this->view('media-metadata'); }
     public function renderMediaDuplicates(): void { $this->view('media-duplicates'); }
     public function renderAuditLogs(): void { $this->view('audit-logs'); }
