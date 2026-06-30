@@ -33,10 +33,22 @@ $score = max(0, 100 - min(100, $healthIssues * 5));
         <h2>Quick actions</h2>
         <p>
             <a class="button button-primary" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media')); ?>">Open Media</a>
+            <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-maintenance')); ?>">Run maintenance</a>
             <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-duplicates')); ?>">Review duplicates</a>
             <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-broken-links')); ?>">Review broken links</a>
             <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-orphans')); ?>">Review orphans</a>
             <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-trash')); ?>">Restore archived files</a>
+        </p>
+    </div>
+
+    <div class="dbg-platform-panel">
+        <h2>Maintenance shortcuts</h2>
+        <p>
+            <?php if (!empty($brokenLinks)) : ?><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-maintenance')); ?>">Archive broken links</a><?php endif; ?>
+            <?php if (!empty($recordOrphans)) : ?><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-maintenance')); ?>">Archive orphan records</a><?php endif; ?>
+            <?php if (!empty($duplicateGroups)) : ?><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-maintenance')); ?>">Clean duplicates</a><?php endif; ?>
+            <?php if (!empty($physicalOrphans)) : ?><a class="button" href="<?php echo esc_url(admin_url('admin.php?page=dbg-platform-media-maintenance')); ?>">Delete physical orphans</a><?php endif; ?>
+            <?php if ($healthIssues === 0) : ?>No maintenance needed.<?php endif; ?>
         </p>
     </div>
 
