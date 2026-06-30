@@ -5,6 +5,7 @@ namespace DBGPlatform\API;
 use DBGPlatform\API\Routes\AssetRoutes;
 use DBGPlatform\API\Routes\AuditRoutes;
 use DBGPlatform\API\Routes\CommerceRoutes;
+use DBGPlatform\API\Routes\FileBrokenLinkRoutes;
 use DBGPlatform\API\Routes\FileDuplicateRoutes;
 use DBGPlatform\API\Routes\FileMetadataRoutes;
 use DBGPlatform\API\Routes\FileOrphanRoutes;
@@ -36,5 +37,6 @@ class RestServiceProvider
         (new FileMetadataRoutes())->register();
         (new FileDuplicateRoutes())->register();
         (new FileOrphanRoutes())->register();
+        (new FileBrokenLinkRoutes())->register();
     }
 }
