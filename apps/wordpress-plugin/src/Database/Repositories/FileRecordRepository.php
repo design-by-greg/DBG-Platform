@@ -81,6 +81,22 @@ class FileRecordRepository
             $params[] = absint($filters['asset_id']);
         }
 
+        if (!empty($filters['tag_id'])) {
+            $where[] = "id IN (SELECT file_record_id FROM {$wpdb->prefix}dbg_file_tag_map WHERE tag_id = %d)";
+            $params[] = absint($filters['tag_id']);
+        }
+
+        if (!empty($filters['tag_ids']) && is_array($filters['tag_ids'])) {
+            $tagIds = array_values(array_unique(array_filter(array_map('absint', $filters['tag_ids']))));
+            if (!empty($tagIds)) {
+                $placeholders = implode(',', array_fill(0, count($tagIds), '%d'));
+                $where[] = "id IN (SELECT file_record_id FROM {$wpdb->prefix}dbg_file_tag_map WHERE tag_id IN ({$placeholders}))";
+                foreach ($tagIds as $tagId) {
+                    $params[] = $tagId;
+                }
+            }
+        }
+
         if (!empty($filters['mime_type'])) {
             $where[] = 'mime_type LIKE %s';
             $params[] = '%' . $wpdb->esc_like(sanitize_text_field($filters['mime_type'])) . '%';
