@@ -71,6 +71,8 @@ class OrganisationContactAdminHandler
     {
         $this->guard('dbg_update_organisation_settings');
         $organisationId = absint($_POST['organisation_id'] ?? 0);
+        $errors = $this->validateSettings();
+        if (!empty($errors)) { $this->redirect('error', $errors, $organisationId); }
         (new OrganisationSettingsRepository())->update($organisationId, [
             'default_language' => sanitize_key($_POST['default_language'] ?? 'fr'),
             'default_currency' => sanitize_key($_POST['default_currency'] ?? 'EUR'),
@@ -98,9 +100,27 @@ class OrganisationContactAdminHandler
     private function validateContact(bool $create): array
     {
         $errors = [];
-        if ($create && trim((string) ($_POST['first_name'] ?? '')) === '') { $errors[] = 'First name is required.'; }
-        if ($create && trim((string) ($_POST['last_name'] ?? '')) === '') { $errors[] = 'Last name is required.'; }
+        $firstName = trim((string) ($_POST['first_name'] ?? ''));
+        $lastName = trim((string) ($_POST['last_name'] ?? ''));
+        if ($create && $firstName === '') { $errors[] = 'First name is required.'; }
+        if ($create && $lastName === '') { $errors[] = 'Last name is required.'; }
+        if ($firstName !== '' && strlen($firstName) < 2) { $errors[] = 'First name must be at least 2 characters.'; }
+        if ($lastName !== '' && strlen($lastName) < 2) { $errors[] = 'Last name must be at least 2 characters.'; }
+        if (strlen($firstName) > 120) { $errors[] = 'First name must be 120 characters or less.'; }
+        if (strlen($lastName) > 120) { $errors[] = 'Last name must be 120 characters or less.'; }
+        foreach (['job_title' => 190, 'email' => 190, 'phone' => 64, 'mobile' => 64, 'department' => 120] as $field => $max) {
+            if (strlen((string) ($_POST[$field] ?? '')) > $max) { $errors[] = $field . ' is too long.'; }
+        }
         if (!empty($_POST['email']) && !is_email($_POST['email'])) { $errors[] = 'Email is invalid.'; }
+        return $errors;
+    }
+
+    private function validateSettings(): array
+    {
+        $errors = [];
+        foreach (['default_language' => 16, 'default_currency' => 8, 'default_project_status' => 64] as $field => $max) {
+            if (strlen((string) ($_POST[$field] ?? '')) > $max) { $errors[] = $field . ' is too long.'; }
+        }
         return $errors;
     }
 
