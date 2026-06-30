@@ -16,6 +16,7 @@ class AdminServiceProvider
         (new MediaFavoriteHandler())->register();
         (new MediaMetadataAdminHandler())->register();
         (new MediaDuplicateCleanupHandler())->register();
+        (new MediaTrashHandler())->register();
         (new FormHandler())->register();
     }
 
@@ -27,6 +28,7 @@ class AdminServiceProvider
         add_submenu_page('dbg-platform', 'Projects', 'Projects', 'manage_options', 'dbg-platform-projects', [$this, 'renderProjects']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
         add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
+        add_submenu_page('dbg-platform', 'Media Restore', 'Media Restore', 'manage_options', 'dbg-platform-media-trash', [$this, 'renderMediaTrash']);
         add_submenu_page('dbg-platform', 'Media Metadata', 'Media Metadata', 'manage_options', 'dbg-platform-media-metadata', [$this, 'renderMediaMetadata']);
         add_submenu_page('dbg-platform', 'Media Duplicates', 'Media Duplicates', 'manage_options', 'dbg-platform-media-duplicates', [$this, 'renderMediaDuplicates']);
         add_submenu_page('dbg-platform', 'Audit Logs', 'Audit Logs', 'manage_options', 'dbg-platform-audit-logs', [$this, 'renderAuditLogs']);
@@ -48,6 +50,7 @@ class AdminServiceProvider
     public function renderProjects(): void { $this->view('projects'); }
     public function renderAssets(): void { $this->view('assets'); }
     public function renderMedia(): void { $this->view('media'); }
+    public function renderMediaTrash(): void { $this->view('media-trash'); }
     public function renderMediaMetadata(): void { $this->view('media-metadata'); }
     public function renderMediaDuplicates(): void { $this->view('media-duplicates'); }
     public function renderAuditLogs(): void { $this->view('audit-logs'); }
