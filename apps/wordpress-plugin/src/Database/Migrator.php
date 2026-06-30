@@ -7,17 +7,11 @@ class Migrator
     public function run(): void
     {
         global $wpdb;
-
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-
         $charset = $wpdb->get_charset_collate();
         $prefix = $wpdb->prefix . 'dbg_';
-
-        foreach ($this->tables($prefix, $charset) as $sql) {
-            dbDelta($sql);
-        }
-
-        update_option('dbg_platform_db_version', '0.1.7');
+        foreach ($this->tables($prefix, $charset) as $sql) { dbDelta($sql); }
+        update_option('dbg_platform_db_version', '0.1.8');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -80,6 +74,15 @@ class Migrator
                 tag_id BIGINT UNSIGNED NOT NULL,
                 created_at DATETIME NOT NULL,
                 PRIMARY KEY (file_record_id, tag_id), KEY file_record_id (file_record_id), KEY tag_id (tag_id)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}file_metadata (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                file_record_id BIGINT UNSIGNED NOT NULL,
+                meta_key VARCHAR(190) NOT NULL,
+                meta_value LONGTEXT NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id), UNIQUE KEY file_meta_key (file_record_id, meta_key), KEY file_record_id (file_record_id), KEY meta_key (meta_key)
             ) {$charset};",
             "CREATE TABLE {$prefix}file_records (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
