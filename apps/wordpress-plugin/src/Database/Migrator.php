@@ -11,7 +11,7 @@ class Migrator
         $charset = $wpdb->get_charset_collate();
         $prefix = $wpdb->prefix . 'dbg_';
         foreach ($this->tables($prefix, $charset) as $sql) { dbDelta($sql); }
-        update_option('dbg_platform_db_version', '0.2.1');
+        update_option('dbg_platform_db_version', '0.3.0');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -85,13 +85,37 @@ class Migrator
             ) {$charset};",
             "CREATE TABLE {$prefix}projects (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                uuid CHAR(36) NULL,
                 organisation_id BIGINT UNSIGNED NOT NULL,
+                contact_id BIGINT UNSIGNED NULL,
+                owner_user_id BIGINT UNSIGNED NULL,
+                project_number VARCHAR(64) NULL,
                 name VARCHAR(255) NOT NULL,
-                description TEXT NULL,
+                type VARCHAR(64) NOT NULL DEFAULT 'custom',
                 status VARCHAR(64) NOT NULL DEFAULT 'draft',
+                priority VARCHAR(32) NOT NULL DEFAULT 'normal',
+                description TEXT NULL,
+                budget_estimate DECIMAL(12,2) NULL,
+                currency VARCHAR(8) NOT NULL DEFAULT 'EUR',
+                due_date DATE NULL,
+                started_at DATETIME NULL,
+                completed_at DATETIME NULL,
+                created_by BIGINT UNSIGNED NULL,
+                updated_by BIGINT UNSIGNED NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
-                PRIMARY KEY (id), KEY organisation_id (organisation_id), KEY status (status)
+                archived_at DATETIME NULL,
+                PRIMARY KEY (id), UNIQUE KEY uuid (uuid), KEY organisation_id (organisation_id), KEY contact_id (contact_id), KEY owner_user_id (owner_user_id), KEY project_number (project_number), KEY type (type), KEY status (status), KEY priority (priority), KEY due_date (due_date), KEY created_by (created_by), KEY updated_by (updated_by)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}project_events (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                project_id BIGINT UNSIGNED NOT NULL,
+                actor_id BIGINT UNSIGNED NULL,
+                event_type VARCHAR(128) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                payload LONGTEXT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id), KEY project_id (project_id), KEY actor_id (actor_id), KEY event_type (event_type), KEY created_at (created_at)
             ) {$charset};",
             "CREATE TABLE {$prefix}assets (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
