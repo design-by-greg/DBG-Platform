@@ -11,7 +11,7 @@ class Migrator
         $charset = $wpdb->get_charset_collate();
         $prefix = $wpdb->prefix . 'dbg_';
         foreach ($this->tables($prefix, $charset) as $sql) { dbDelta($sql); }
-        update_option('dbg_platform_db_version', '0.4.0');
+        update_option('dbg_platform_db_version', '0.5.0');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -148,6 +148,64 @@ class Migrator
                 payload LONGTEXT NULL,
                 created_at DATETIME NOT NULL,
                 PRIMARY KEY (id), KEY asset_id (asset_id), KEY actor_id (actor_id), KEY event_type (event_type), KEY created_at (created_at)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}quotes (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                uuid CHAR(36) NULL,
+                organisation_id BIGINT UNSIGNED NOT NULL,
+                project_id BIGINT UNSIGNED NULL,
+                contact_id BIGINT UNSIGNED NULL,
+                quote_number VARCHAR(64) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                status VARCHAR(64) NOT NULL DEFAULT 'draft',
+                currency VARCHAR(8) NOT NULL DEFAULT 'EUR',
+                subtotal_ht DECIMAL(12,2) NOT NULL DEFAULT 0,
+                discount_total DECIMAL(12,2) NOT NULL DEFAULT 0,
+                tax_total DECIMAL(12,2) NOT NULL DEFAULT 0,
+                total_ht DECIMAL(12,2) NOT NULL DEFAULT 0,
+                total_ttc DECIMAL(12,2) NOT NULL DEFAULT 0,
+                valid_until DATE NULL,
+                terms TEXT NULL,
+                notes TEXT NULL,
+                signed_at DATETIME NULL,
+                accepted_at DATETIME NULL,
+                rejected_at DATETIME NULL,
+                created_by BIGINT UNSIGNED NULL,
+                updated_by BIGINT UNSIGNED NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                archived_at DATETIME NULL,
+                PRIMARY KEY (id), UNIQUE KEY uuid (uuid), UNIQUE KEY quote_number (quote_number), KEY organisation_id (organisation_id), KEY project_id (project_id), KEY contact_id (contact_id), KEY status (status), KEY valid_until (valid_until), KEY created_by (created_by), KEY updated_by (updated_by)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}quote_lines (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                quote_id BIGINT UNSIGNED NOT NULL,
+                asset_id BIGINT UNSIGNED NULL,
+                line_type VARCHAR(64) NOT NULL DEFAULT 'item',
+                title VARCHAR(255) NOT NULL,
+                description TEXT NULL,
+                quantity DECIMAL(12,3) NOT NULL DEFAULT 1,
+                unit VARCHAR(32) NOT NULL DEFAULT 'unit',
+                unit_price_ht DECIMAL(12,2) NOT NULL DEFAULT 0,
+                discount_rate DECIMAL(6,3) NOT NULL DEFAULT 0,
+                tax_rate DECIMAL(6,3) NOT NULL DEFAULT 20,
+                line_total_ht DECIMAL(12,2) NOT NULL DEFAULT 0,
+                line_total_ttc DECIMAL(12,2) NOT NULL DEFAULT 0,
+                sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+                metadata_json LONGTEXT NULL,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id), KEY quote_id (quote_id), KEY asset_id (asset_id), KEY line_type (line_type), KEY sort_order (sort_order)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}quote_events (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                quote_id BIGINT UNSIGNED NOT NULL,
+                actor_id BIGINT UNSIGNED NULL,
+                event_type VARCHAR(128) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                payload LONGTEXT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id), KEY quote_id (quote_id), KEY actor_id (actor_id), KEY event_type (event_type), KEY created_at (created_at)
             ) {$charset};",
             "CREATE TABLE {$prefix}media_folders (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
