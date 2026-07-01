@@ -11,7 +11,7 @@ class Migrator
         $charset = $wpdb->get_charset_collate();
         $prefix = $wpdb->prefix . 'dbg_';
         foreach ($this->tables($prefix, $charset) as $sql) { dbDelta($sql); }
-        update_option('dbg_platform_db_version', '0.3.0');
+        update_option('dbg_platform_db_version', '0.4.0');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -119,14 +119,35 @@ class Migrator
             ) {$charset};",
             "CREATE TABLE {$prefix}assets (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                uuid CHAR(36) NULL,
                 organisation_id BIGINT UNSIGNED NOT NULL,
                 project_id BIGINT UNSIGNED NULL,
-                type VARCHAR(64) NOT NULL,
+                parent_asset_id BIGINT UNSIGNED NULL,
+                type VARCHAR(64) NOT NULL DEFAULT 'document',
+                category VARCHAR(64) NOT NULL DEFAULT 'general',
                 name VARCHAR(255) NOT NULL,
+                description TEXT NULL,
                 status VARCHAR(64) NOT NULL DEFAULT 'draft',
+                approval_status VARCHAR(64) NOT NULL DEFAULT 'not_required',
+                current_file_record_id BIGINT UNSIGNED NULL,
+                version_number INT UNSIGNED NOT NULL DEFAULT 1,
+                metadata_json LONGTEXT NULL,
+                created_by BIGINT UNSIGNED NULL,
+                updated_by BIGINT UNSIGNED NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
-                PRIMARY KEY (id), KEY organisation_id (organisation_id), KEY project_id (project_id), KEY type (type), KEY status (status)
+                archived_at DATETIME NULL,
+                PRIMARY KEY (id), UNIQUE KEY uuid (uuid), KEY organisation_id (organisation_id), KEY project_id (project_id), KEY parent_asset_id (parent_asset_id), KEY current_file_record_id (current_file_record_id), KEY type (type), KEY category (category), KEY status (status), KEY approval_status (approval_status), KEY created_by (created_by), KEY updated_by (updated_by)
+            ) {$charset};",
+            "CREATE TABLE {$prefix}asset_events (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                asset_id BIGINT UNSIGNED NOT NULL,
+                actor_id BIGINT UNSIGNED NULL,
+                event_type VARCHAR(128) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                payload LONGTEXT NULL,
+                created_at DATETIME NOT NULL,
+                PRIMARY KEY (id), KEY asset_id (asset_id), KEY actor_id (actor_id), KEY event_type (event_type), KEY created_at (created_at)
             ) {$charset};",
             "CREATE TABLE {$prefix}media_folders (
                 id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
