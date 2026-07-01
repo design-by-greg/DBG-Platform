@@ -21,8 +21,8 @@ class AssetAdminHandler
     {
         $this->guard('dbg_create_asset');
         $payload = $this->payload();
-        $errors = (new AssetService())->validationErrors($payload, true);
-        if (!empty($errors)) { $this->redirect('error', $errors); }
+        $errors = array_merge($this->validate(true), (new AssetService())->validationErrors($payload, true));
+        if (!empty($errors)) { $this->redirect('error', array_unique($errors)); }
         $id = (new AssetService())->create($payload);
         if ($id <= 0) { $this->redirect('error', ['Asset could not be created.']); }
         $this->redirect('created');
@@ -34,8 +34,8 @@ class AssetAdminHandler
         $assetId = absint($_POST['asset_id'] ?? 0);
         if ($assetId <= 0) { $this->redirect('error', ['Asset ID is required.']); }
         $payload = $this->payload();
-        $errors = (new AssetService())->validationErrors($payload, false, $assetId);
-        if (!empty($errors)) { $this->redirect('error', $errors); }
+        $errors = array_merge($this->validate(false), (new AssetService())->validationErrors($payload, false, $assetId));
+        if (!empty($errors)) { $this->redirect('error', array_unique($errors)); }
         (new AssetService())->update($assetId, $payload);
         $this->redirect('updated');
     }
@@ -103,6 +103,23 @@ class AssetAdminHandler
             'approval_status' => sanitize_key($_POST['approval_status'] ?? 'not_required'),
             'metadata' => [],
         ];
+    }
+
+    private function validate(bool $create): array
+    {
+        $errors = [];
+        $allowed = (new AssetService())->allowedValues();
+        if ($create && absint($_POST['organisation_id'] ?? 0) <= 0) { $errors[] = 'Organisation is required.'; }
+        if ($create && trim((string) ($_POST['name'] ?? '')) === '') { $errors[] = 'Asset name is required.'; }
+        if (strlen((string) ($_POST['name'] ?? '')) > 255) { $errors[] = 'Asset name is too long.'; }
+        foreach (['type' => 'types', 'category' => 'categories', 'status' => 'statuses', 'approval_status' => 'approval_statuses'] as $field => $bucket) {
+            $value = sanitize_key($_POST[$field] ?? '');
+            if ($value !== '' && !in_array($value, $allowed[$bucket], true)) { $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is invalid.'; }
+        }
+        foreach (['project_id', 'parent_asset_id', 'current_file_record_id'] as $field) {
+            if (isset($_POST[$field]) && $_POST[$field] !== '' && absint($_POST[$field]) <= 0) { $errors[] = str_replace('_', ' ', $field) . ' must be a valid positive number.'; }
+        }
+        return $errors;
     }
 
     private function guard(string $action): void
