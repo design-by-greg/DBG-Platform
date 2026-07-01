@@ -15,7 +15,6 @@ class OrganisationUserRoutes
     private PermissionGate $gate;
     private OrganisationUserRepository $repository;
     private OrganisationUserService $service;
-
     private array $roles = ['owner', 'administrator', 'manager', 'sales', 'designer', 'production', 'support', 'viewer'];
 
     public function __construct()
@@ -31,17 +30,14 @@ class OrganisationUserRoutes
             ['methods' => 'GET', 'callback' => [$this, 'listUsers'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'POST', 'callback' => [$this, 'addUser'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/organisation-users/(?P<id>\d+)', [
             ['methods' => 'GET', 'callback' => [$this, 'getUser'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'PATCH', 'callback' => [$this, 'updateUser'], 'permission_callback' => [$this->gate, 'canManage']],
             ['methods' => 'DELETE', 'callback' => [$this, 'archiveUser'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/organisation-users/(?P<id>\d+)/restore', [
             ['methods' => 'PATCH', 'callback' => [$this, 'restoreUser'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/organisation-users/(?P<id>\d+)/owner', [
             ['methods' => 'PATCH', 'callback' => [$this, 'makeOwner'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
@@ -67,8 +63,9 @@ class OrganisationUserRoutes
         $payload = $request->get_json_params() ?: [];
         $validation = $this->validatePayload($payload, true);
         if ($validation instanceof WP_REST_Response) { return $validation; }
+        if (isset($payload['role']) && $payload['role'] === 'owner') { $payload['is_owner'] = true; }
         $id = $this->service->add(absint($request['organisation_id']), absint($payload['user_id'] ?? 0), $payload);
-        if ($id <= 0) { return ApiResponse::validation(['Organisation or user not found.']); }
+        if ($id <= 0) { return ApiResponse::validation(['Organisation or user not found, or organisation is archived.']); }
         return ApiResponse::created(['id' => $id, 'message' => 'Organisation user added']);
     }
 
@@ -84,23 +81,13 @@ class OrganisationUserRoutes
         $payload = $request->get_json_params() ?: [];
         $validation = $this->validatePayload($payload, false);
         if ($validation instanceof WP_REST_Response) { return $validation; }
+        if (isset($payload['role']) && $payload['role'] === 'owner') { $payload['is_owner'] = true; }
         return ApiResponse::ok(['updated' => $this->service->update((int) $request['id'], $payload)]);
     }
 
-    public function archiveUser(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]);
-    }
-
-    public function restoreUser(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]);
-    }
-
-    public function makeOwner(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['owner' => $this->service->makeOwner((int) $request['id'])]);
-    }
+    public function archiveUser(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]); }
+    public function restoreUser(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]); }
+    public function makeOwner(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['owner' => $this->service->makeOwner((int) $request['id'])]); }
 
     private function validatePayload(array $payload, bool $create): ?WP_REST_Response
     {
@@ -112,20 +99,12 @@ class OrganisationUserRoutes
         return $validator->passes() ? null : ApiResponse::validation($validator->errors());
     }
 
-    private function hydrateUsers(array $items): array
-    {
-        return array_map([$this, 'hydrateUser'], $items);
-    }
+    private function hydrateUsers(array $items): array { return array_map([$this, 'hydrateUser'], $items); }
 
     private function hydrateUser(array $item): array
     {
         $user = get_userdata(absint($item['user_id'] ?? 0));
-        $item['user'] = $user ? [
-            'id' => $user->ID,
-            'display_name' => $user->display_name,
-            'email' => $user->user_email,
-            'login' => $user->user_login,
-        ] : null;
+        $item['user'] = $user ? ['id' => $user->ID, 'display_name' => $user->display_name, 'email' => $user->user_email, 'login' => $user->user_login] : null;
         return $item;
     }
 }
