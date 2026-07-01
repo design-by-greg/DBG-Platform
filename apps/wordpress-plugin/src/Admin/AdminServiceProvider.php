@@ -12,6 +12,7 @@ class AdminServiceProvider
         (new OrganisationContactAdminHandler())->register();
         (new OrganisationUserAdminHandler())->register();
         (new ProjectAdminHandler())->register();
+        (new AssetAdminHandler())->register();
         (new MediaAjaxUploadHandler())->register();
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
