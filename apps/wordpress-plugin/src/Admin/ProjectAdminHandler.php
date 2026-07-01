@@ -19,10 +19,11 @@ class ProjectAdminHandler
     public function create(): void
     {
         $this->guard('dbg_create_project');
-        $errors = $this->validate(true);
-        if (!empty($errors)) { $this->redirect('error', $errors); }
-        $id = (new ProjectService())->create($this->payload());
-        if ($id <= 0) { $this->redirect('error', ['Organisation, contact, or owner is invalid.']); }
+        $payload = $this->payload();
+        $errors = array_merge($this->validate(true), (new ProjectService())->validationErrors($payload, true));
+        if (!empty($errors)) { $this->redirect('error', array_unique($errors)); }
+        $id = (new ProjectService())->create($payload);
+        if ($id <= 0) { $this->redirect('error', ['Project could not be created.']); }
         $this->redirect('created');
     }
 
@@ -31,9 +32,10 @@ class ProjectAdminHandler
         $this->guard('dbg_update_project');
         $projectId = absint($_POST['project_id'] ?? 0);
         if ($projectId <= 0) { $this->redirect('error', ['Project ID is required.']); }
-        $errors = $this->validate(false);
-        if (!empty($errors)) { $this->redirect('error', $errors); }
-        (new ProjectService())->update($projectId, $this->payload());
+        $payload = $this->payload();
+        $errors = array_merge($this->validate(false), (new ProjectService())->validationErrors($payload, false, $projectId));
+        if (!empty($errors)) { $this->redirect('error', array_unique($errors)); }
+        (new ProjectService())->update($projectId, $payload);
         $this->redirect('updated');
     }
 
@@ -54,7 +56,10 @@ class ProjectAdminHandler
     public function status(): void
     {
         $this->guard('dbg_project_status');
-        (new ProjectService())->changeStatus(absint($_POST['project_id'] ?? 0), sanitize_key($_POST['status'] ?? ''));
+        $status = sanitize_key($_POST['status'] ?? '');
+        $allowed = (new ProjectService())->allowedValues();
+        if (!in_array($status, $allowed['statuses'], true)) { $this->redirect('error', ['Status is invalid.']); }
+        (new ProjectService())->changeStatus(absint($_POST['project_id'] ?? 0), $status);
         $this->redirect('updated');
     }
 
@@ -96,10 +101,17 @@ class ProjectAdminHandler
     private function validate(bool $create): array
     {
         $errors = [];
+        $allowed = (new ProjectService())->allowedValues();
         if ($create && absint($_POST['organisation_id'] ?? 0) <= 0) { $errors[] = 'Organisation is required.'; }
         if ($create && trim((string) ($_POST['name'] ?? '')) === '') { $errors[] = 'Project name is required.'; }
         if (strlen((string) ($_POST['name'] ?? '')) > 255) { $errors[] = 'Project name is too long.'; }
         if (strlen((string) ($_POST['project_number'] ?? '')) > 64) { $errors[] = 'Project number is too long.'; }
+        foreach (['type' => 'types', 'status' => 'statuses', 'priority' => 'priorities', 'currency' => 'currencies'] as $field => $bucket) {
+            $value = $field === 'currency' ? strtoupper(sanitize_key($_POST[$field] ?? '')) : sanitize_key($_POST[$field] ?? '');
+            if ($value !== '' && !in_array($value, $allowed[$bucket], true)) { $errors[] = ucfirst($field) . ' is invalid.'; }
+        }
+        if (!empty($_POST['due_date']) && !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $_POST['due_date'])) { $errors[] = 'Due date must use YYYY-MM-DD format.'; }
+        if (isset($_POST['budget_estimate']) && $_POST['budget_estimate'] !== '' && (float) $_POST['budget_estimate'] < 0) { $errors[] = 'Budget estimate cannot be negative.'; }
         return $errors;
     }
 
