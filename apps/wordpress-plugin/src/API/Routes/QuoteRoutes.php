@@ -1,0 +1,143 @@
+<?php
+
+namespace DBGPlatform\API\Routes;
+
+use DBGPlatform\API\ApiResponse;
+use DBGPlatform\API\ApiValidator;
+use DBGPlatform\Database\Repositories\QuoteRepository;
+use DBGPlatform\Quotes\QuoteEventRepository;
+use DBGPlatform\Quotes\QuoteService;
+use DBGPlatform\Security\PermissionGate;
+use WP_REST_Request;
+use WP_REST_Response;
+
+class QuoteRoutes
+{
+    private QuoteRepository $quotes;
+    private QuoteEventRepository $events;
+    private QuoteService $service;
+    private PermissionGate $gate;
+
+    public function __construct()
+    {
+        $this->quotes = new QuoteRepository();
+        $this->events = new QuoteEventRepository();
+        $this->service = new QuoteService();
+        $this->gate = new PermissionGate();
+    }
+
+    public function register(): void
+    {
+        register_rest_route('dbg/v1', '/quotes', [
+            ['methods' => 'GET', 'callback' => [$this, 'listQuotes'], 'permission_callback' => [$this->gate, 'canRead']],
+            ['methods' => 'POST', 'callback' => [$this, 'createQuote'], 'permission_callback' => [$this->gate, 'canManage']],
+        ]);
+
+        register_rest_route('dbg/v1', '/quotes/(?P<id>\d+)', [
+            ['methods' => 'GET', 'callback' => [$this, 'getQuote'], 'permission_callback' => [$this->gate, 'canRead']],
+            ['methods' => 'PATCH', 'callback' => [$this, 'updateQuote'], 'permission_callback' => [$this->gate, 'canManage']],
+            ['methods' => 'DELETE', 'callback' => [$this, 'archiveQuote'], 'permission_callback' => [$this->gate, 'canManage']],
+        ]);
+
+        register_rest_route('dbg/v1', '/quotes/(?P<id>\d+)/restore', [
+            ['methods' => 'PATCH', 'callback' => [$this, 'restoreQuote'], 'permission_callback' => [$this->gate, 'canManage']],
+        ]);
+
+        register_rest_route('dbg/v1', '/quotes/(?P<id>\d+)/status', [
+            ['methods' => 'PATCH', 'callback' => [$this, 'changeStatus'], 'permission_callback' => [$this->gate, 'canManage']],
+        ]);
+
+        register_rest_route('dbg/v1', '/quotes/(?P<id>\d+)/events', [
+            ['methods' => 'GET', 'callback' => [$this, 'quoteEvents'], 'permission_callback' => [$this->gate, 'canRead']],
+        ]);
+    }
+
+    public function listQuotes(WP_REST_Request $request): WP_REST_Response
+    {
+        $filters = [
+            'organisation_id' => absint($request->get_param('organisation_id') ?? 0),
+            'project_id' => absint($request->get_param('project_id') ?? 0),
+            'contact_id' => absint($request->get_param('contact_id') ?? 0),
+            'search' => sanitize_text_field($request->get_param('search') ?? ''),
+            'status' => sanitize_key($request->get_param('status') ?? ''),
+            'valid_from' => sanitize_text_field($request->get_param('valid_from') ?? ''),
+            'valid_to' => sanitize_text_field($request->get_param('valid_to') ?? ''),
+            'sort_by' => sanitize_key($request->get_param('sort_by') ?? 'id'),
+            'sort_order' => sanitize_key($request->get_param('sort_order') ?? 'DESC'),
+        ];
+        $result = $this->quotes->paginated($filters, absint($request->get_param('page') ?? 1), absint($request->get_param('per_page') ?? 25));
+        return ApiResponse::ok(['data' => $result['items'], 'pagination' => $result['pagination'], 'sort' => $result['sort'], 'filters' => $filters, 'allowed' => $this->service->allowedValues()]);
+    }
+
+    public function getQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        $item = $this->service->findWithLines((int) $request['id']);
+        if (!$item) { return ApiResponse::notFound('Quote not found'); }
+        return ApiResponse::ok(['data' => $item, 'events' => $this->events->forQuote((int) $request['id'], 50), 'allowed' => $this->service->allowedValues()]);
+    }
+
+    public function createQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        $payload = $request->get_json_params() ?: [];
+        $validation = $this->validatePayload($payload, true);
+        if ($validation instanceof WP_REST_Response) { return $validation; }
+        $errors = $this->service->validationErrors($payload, true);
+        if (!empty($errors)) { return ApiResponse::validation($errors); }
+        $id = $this->service->create($payload);
+        return $id > 0 ? ApiResponse::created(['id' => $id, 'message' => 'Quote created']) : ApiResponse::validation(['Quote could not be created.']);
+    }
+
+    public function updateQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        $payload = $request->get_json_params() ?: [];
+        $validation = $this->validatePayload($payload, false);
+        if ($validation instanceof WP_REST_Response) { return $validation; }
+        $errors = $this->service->validationErrors($payload, false, (int) $request['id']);
+        if (!empty($errors)) { return ApiResponse::validation($errors); }
+        return ApiResponse::ok(['updated' => $this->service->update((int) $request['id'], $payload)]);
+    }
+
+    public function archiveQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]);
+    }
+
+    public function restoreQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]);
+    }
+
+    public function changeStatus(WP_REST_Request $request): WP_REST_Response
+    {
+        $payload = $request->get_json_params() ?: [];
+        $status = sanitize_key($payload['status'] ?? '');
+        if ($status === '') { return ApiResponse::validation(['Status is required.']); }
+        $allowed = $this->service->allowedValues();
+        if (!in_array($status, $allowed['statuses'], true)) { return ApiResponse::validation(['Status is invalid.']); }
+        return ApiResponse::ok(['updated' => $this->service->changeStatus((int) $request['id'], $status)]);
+    }
+
+    public function quoteEvents(WP_REST_Request $request): WP_REST_Response
+    {
+        return ApiResponse::ok(['data' => $this->events->forQuote((int) $request['id'], absint($request->get_param('limit') ?? 100))]);
+    }
+
+    private function validatePayload(array $payload, bool $create): ?WP_REST_Response
+    {
+        $validator = new ApiValidator();
+        if ($create) {
+            $validator->positiveInt('organisation_id', 'Organisation ID', $payload)->required('title', 'Quote title', $payload);
+        }
+        $allowed = $this->service->allowedValues();
+        $validator
+            ->maxLength('quote_number', 'Quote number', 64, $payload)
+            ->maxLength('title', 'Quote title', 255, $payload)
+            ->maxLength('currency', 'Currency', 8, $payload);
+        if (isset($payload['status'])) { $validator->allowedValue('status', 'Status', $allowed['statuses'], $payload); }
+        if (isset($payload['currency'])) { $validator->allowedValue('currency', 'Currency', $allowed['currencies'], $payload); }
+        foreach (['project_id' => 'Project ID', 'contact_id' => 'Contact ID'] as $field => $label) {
+            if (isset($payload[$field]) && $payload[$field] !== '' && $payload[$field] !== null) { $validator->positiveInt($field, $label, $payload); }
+        }
+        return $validator->passes() ? null : ApiResponse::validation($validator->errors());
+    }
+}
