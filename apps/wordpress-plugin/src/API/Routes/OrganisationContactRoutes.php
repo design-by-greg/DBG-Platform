@@ -7,6 +7,7 @@ use DBGPlatform\API\ApiValidator;
 use DBGPlatform\Database\Repositories\OrganisationContactRepository;
 use DBGPlatform\Database\Repositories\OrganisationSettingsRepository;
 use DBGPlatform\Organisations\OrganisationContactService;
+use DBGPlatform\Organisations\OrganisationSettingsService;
 use DBGPlatform\Security\PermissionGate;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -15,14 +16,16 @@ class OrganisationContactRoutes
 {
     private PermissionGate $gate;
     private OrganisationContactRepository $contacts;
-    private OrganisationSettingsRepository $settings;
+    private OrganisationSettingsRepository $settingsRepository;
+    private OrganisationSettingsService $settingsService;
     private OrganisationContactService $service;
 
     public function __construct()
     {
         $this->gate = new PermissionGate();
         $this->contacts = new OrganisationContactRepository();
-        $this->settings = new OrganisationSettingsRepository();
+        $this->settingsRepository = new OrganisationSettingsRepository();
+        $this->settingsService = new OrganisationSettingsService();
         $this->service = new OrganisationContactService();
     }
 
@@ -91,14 +94,22 @@ class OrganisationContactRoutes
     public function archiveContact(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]); }
     public function restoreContact(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]); }
     public function makeMainContact(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['main' => $this->service->makeMain((int) $request['id'])]); }
-    public function getSettings(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['data' => $this->settings->find(absint($request['organisation_id']))]); }
+
+    public function getSettings(WP_REST_Request $request): WP_REST_Response
+    {
+        $settings = $this->settingsService->find(absint($request['organisation_id']));
+        if (!$settings) { return ApiResponse::notFound('Organisation not found'); }
+        return ApiResponse::ok(['data' => $settings, 'allowed' => $this->settingsRepository->allowedValues()]);
+    }
 
     public function updateSettings(WP_REST_Request $request): WP_REST_Response
     {
         $payload = $request->get_json_params() ?: [];
         $validation = $this->validateSettings($payload);
         if ($validation instanceof WP_REST_Response) { return $validation; }
-        return ApiResponse::ok(['data' => $this->settings->update(absint($request['organisation_id']), $payload)]);
+        $settings = $this->settingsService->update(absint($request['organisation_id']), $payload);
+        if (!$settings) { return ApiResponse::notFound('Organisation not found'); }
+        return ApiResponse::ok(['data' => $settings, 'allowed' => $this->settingsRepository->allowedValues()]);
     }
 
     private function validateContact(array $payload, bool $create): ?WP_REST_Response
@@ -112,7 +123,15 @@ class OrganisationContactRoutes
 
     private function validateSettings(array $payload): ?WP_REST_Response
     {
-        $validator = (new ApiValidator())->maxLength('default_language', 'Default language', 16, $payload)->maxLength('default_currency', 'Default currency', 8, $payload)->maxLength('default_project_status', 'Default project status', 64, $payload)->booleanish('branding_enabled', 'Branding enabled', $payload);
+        $allowed = $this->settingsRepository->allowedValues();
+        $validator = (new ApiValidator())
+            ->maxLength('default_language', 'Default language', 16, $payload)
+            ->maxLength('default_currency', 'Default currency', 8, $payload)
+            ->maxLength('default_project_status', 'Default project status', 64, $payload)
+            ->allowedValue('default_language', 'Default language', $allowed['languages'], $payload)
+            ->allowedValue('default_currency', 'Default currency', $allowed['currencies'], $payload)
+            ->allowedValue('default_project_status', 'Default project status', $allowed['project_statuses'], $payload)
+            ->booleanish('branding_enabled', 'Branding enabled', $payload);
         return $validator->passes() ? null : ApiResponse::validation($validator->errors());
     }
 }
