@@ -25,8 +25,9 @@ class OrganisationUserAdminHandler
         $userId = absint($_POST['user_id'] ?? 0);
         $errors = $this->validatePayload(true);
         if (!empty($errors)) { $this->redirect('error', $errors, $organisationId); }
-        $id = (new OrganisationUserService())->add($organisationId, $userId, $this->payload());
-        if ($id <= 0) { $this->redirect('error', ['Organisation or WordPress user not found.'], $organisationId); }
+        $payload = $this->payload();
+        $id = (new OrganisationUserService())->add($organisationId, $userId, $payload);
+        if ($id <= 0) { $this->redirect('error', ['Organisation or WordPress user not found, or organisation is archived.'], $organisationId); }
         $this->redirect('created', [], $organisationId);
     }
 
@@ -86,16 +87,16 @@ class OrganisationUserAdminHandler
 
     private function payload(): array
     {
-        return [
-            'role' => sanitize_key($_POST['role'] ?? 'viewer'),
-            'is_owner' => !empty($_POST['is_owner']),
-        ];
+        $role = sanitize_key($_POST['role'] ?? 'viewer');
+        $isOwner = !empty($_POST['is_owner']) || $role === 'owner';
+        return ['role' => $isOwner ? 'owner' : $role, 'is_owner' => $isOwner];
     }
 
     private function validatePayload(bool $create): array
     {
         $errors = [];
         if ($create && absint($_POST['user_id'] ?? 0) <= 0) { $errors[] = 'WordPress user is required.'; }
+        if ($create && absint($_POST['user_id'] ?? 0) > 0 && get_userdata(absint($_POST['user_id'])) === false) { $errors[] = 'WordPress user does not exist.'; }
         $role = sanitize_key($_POST['role'] ?? 'viewer');
         if (!in_array($role, $this->roles, true)) { $errors[] = 'Role is invalid.'; }
         return $errors;
