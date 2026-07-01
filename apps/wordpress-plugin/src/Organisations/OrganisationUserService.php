@@ -12,6 +12,8 @@ class OrganisationUserService
     private OrganisationRepository $organisations;
     private AuditLogger $audit;
 
+    private array $roles = ['owner', 'administrator', 'manager', 'sales', 'designer', 'production', 'support', 'viewer'];
+
     public function __construct()
     {
         $this->users = new OrganisationUserRepository();
@@ -21,7 +23,8 @@ class OrganisationUserService
 
     public function add(int $organisationId, int $userId, array $data = []): int
     {
-        if (!$this->organisations->find($organisationId) || get_userdata($userId) === false) { return 0; }
+        $organisation = $this->organisations->find($organisationId);
+        if (!$organisation || ($organisation['status'] ?? '') === 'archived' || get_userdata($userId) === false) { return 0; }
         $payload = $this->normalise($data);
         $payload['organisation_id'] = $organisationId;
         $payload['user_id'] = $userId;
@@ -33,6 +36,7 @@ class OrganisationUserService
     public function update(int $id, array $data): bool
     {
         $before = $this->users->find($id);
+        if (!$before) { return false; }
         $payload = $this->normalise($data);
         $updated = $this->users->update($id, $payload);
         $this->audit->record('updated', 'organisation_user', $id, ['before' => $before, 'after' => $this->users->find($id), 'changes' => $payload, 'updated' => $updated]);
@@ -42,6 +46,7 @@ class OrganisationUserService
     public function archive(int $id): bool
     {
         $before = $this->users->find($id);
+        if (!$before) { return false; }
         $done = $this->users->archive($id);
         $this->audit->record('archived', 'organisation_user', $id, ['before' => $before, 'after' => $this->users->find($id), 'archived' => $done]);
         return $done;
@@ -50,6 +55,7 @@ class OrganisationUserService
     public function restore(int $id): bool
     {
         $before = $this->users->find($id);
+        if (!$before) { return false; }
         $done = $this->users->restore($id);
         $this->audit->record('restored', 'organisation_user', $id, ['before' => $before, 'after' => $this->users->find($id), 'restored' => $done]);
         return $done;
@@ -58,7 +64,9 @@ class OrganisationUserService
     public function makeOwner(int $id): bool
     {
         $before = $this->users->find($id);
+        if (!$before) { return false; }
         $done = $this->users->setOwner($id);
+        if ($done) { $this->users->update($id, ['role' => 'owner']); }
         $this->audit->record('owner', 'organisation_user', $id, ['before' => $before, 'after' => $this->users->find($id), 'done' => $done]);
         return $done;
     }
@@ -69,8 +77,12 @@ class OrganisationUserService
         foreach (['role', 'is_owner', 'status'] as $field) {
             if (array_key_exists($field, $data)) { $payload[$field] = $data[$field]; }
         }
-        if (!isset($payload['role'])) { $payload['role'] = 'viewer'; }
-        if (!isset($payload['status'])) { $payload['status'] = 'active'; }
+        $payload['role'] = sanitize_key($payload['role'] ?? 'viewer');
+        if (!in_array($payload['role'], $this->roles, true)) { $payload['role'] = 'viewer'; }
+        $payload['status'] = sanitize_key($payload['status'] ?? 'active');
+        if (!in_array($payload['status'], ['active', 'archived'], true)) { $payload['status'] = 'active'; }
+        $payload['is_owner'] = !empty($payload['is_owner']) || $payload['role'] === 'owner';
+        if ($payload['is_owner']) { $payload['role'] = 'owner'; }
         return $payload;
     }
 }
