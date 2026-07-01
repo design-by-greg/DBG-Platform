@@ -37,18 +37,10 @@ class AssetRoutes
             ['methods' => 'PATCH', 'callback' => [$this, 'updateAsset'], 'permission_callback' => [$this->gate, 'canManage']],
             ['methods' => 'DELETE', 'callback' => [$this, 'archiveAsset'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/restore', [
-            ['methods' => 'PATCH', 'callback' => [$this, 'restoreAsset'], 'permission_callback' => [$this->gate, 'canManage']],
-        ]);
-        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/approval', [
-            ['methods' => 'PATCH', 'callback' => [$this, 'changeApproval'], 'permission_callback' => [$this->gate, 'canManage']],
-        ]);
-        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/version', [
-            ['methods' => 'PATCH', 'callback' => [$this, 'bumpVersion'], 'permission_callback' => [$this->gate, 'canManage']],
-        ]);
-        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/events', [
-            ['methods' => 'GET', 'callback' => [$this, 'assetEvents'], 'permission_callback' => [$this->gate, 'canRead']],
-        ]);
+        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/restore', [['methods' => 'PATCH', 'callback' => [$this, 'restoreAsset'], 'permission_callback' => [$this->gate, 'canManage']]]);
+        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/approval', [['methods' => 'PATCH', 'callback' => [$this, 'changeApproval'], 'permission_callback' => [$this->gate, 'canManage']]]);
+        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/version', [['methods' => 'PATCH', 'callback' => [$this, 'bumpVersion'], 'permission_callback' => [$this->gate, 'canManage']]]);
+        register_rest_route('dbg/v1', '/assets/(?P<id>\d+)/events', [['methods' => 'GET', 'callback' => [$this, 'assetEvents'], 'permission_callback' => [$this->gate, 'canRead']]]);
     }
 
     public function listAssets(WP_REST_Request $request): WP_REST_Response
@@ -98,15 +90,8 @@ class AssetRoutes
         return ApiResponse::ok(['updated' => $this->service->update((int) $request['id'], $payload)]);
     }
 
-    public function archiveAsset(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]);
-    }
-
-    public function restoreAsset(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]);
-    }
+    public function archiveAsset(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]); }
+    public function restoreAsset(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]); }
 
     public function changeApproval(WP_REST_Request $request): WP_REST_Response
     {
@@ -118,22 +103,15 @@ class AssetRoutes
         return ApiResponse::ok(['updated' => $this->service->changeApprovalStatus((int) $request['id'], $status)]);
     }
 
-    public function bumpVersion(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['updated' => $this->service->bumpVersion((int) $request['id'])]);
-    }
-
-    public function assetEvents(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['data' => $this->events->forAsset((int) $request['id'], absint($request->get_param('limit') ?? 100))]);
-    }
+    public function bumpVersion(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['updated' => $this->service->bumpVersion((int) $request['id'])]); }
+    public function assetEvents(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['data' => $this->events->forAsset((int) $request['id'], absint($request->get_param('limit') ?? 100))]); }
 
     private function validatePayload(array $payload, bool $create): ?WP_REST_Response
     {
         $validator = new ApiValidator();
         if ($create) { $validator->positiveInt('organisation_id', 'Organisation ID', $payload)->required('name', 'Asset name', $payload); }
         $allowed = $this->service->allowedValues();
-        $validator->maxLength('name', 'Asset name', 255, $payload);
+        $validator->maxLength('uuid', 'UUID', 36, $payload)->maxLength('name', 'Asset name', 255, $payload);
         if (isset($payload['type'])) { $validator->allowedValue('type', 'Type', $allowed['types'], $payload); }
         if (isset($payload['category'])) { $validator->allowedValue('category', 'Category', $allowed['categories'], $payload); }
         if (isset($payload['status'])) { $validator->allowedValue('status', 'Status', $allowed['statuses'], $payload); }
@@ -141,6 +119,7 @@ class AssetRoutes
         foreach (['project_id' => 'Project ID', 'parent_asset_id' => 'Parent asset ID', 'current_file_record_id' => 'Current file record ID', 'version_number' => 'Version number'] as $field => $label) {
             if (isset($payload[$field]) && $payload[$field] !== '' && $payload[$field] !== null) { $validator->positiveInt($field, $label, $payload); }
         }
+        if (isset($payload['metadata']) && !is_array($payload['metadata'])) { return ApiResponse::validation(['Metadata must be an object.']); }
         return $validator->passes() ? null : ApiResponse::validation($validator->errors());
     }
 }
