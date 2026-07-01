@@ -32,24 +32,14 @@ class ProjectRoutes
             ['methods' => 'GET', 'callback' => [$this, 'listProjects'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'POST', 'callback' => [$this, 'createProject'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
         register_rest_route('dbg/v1', '/projects/(?P<id>\d+)', [
             ['methods' => 'GET', 'callback' => [$this, 'getProject'], 'permission_callback' => [$this->gate, 'canRead']],
             ['methods' => 'PATCH', 'callback' => [$this, 'updateProject'], 'permission_callback' => [$this->gate, 'canManage']],
             ['methods' => 'DELETE', 'callback' => [$this, 'archiveProject'], 'permission_callback' => [$this->gate, 'canManage']],
         ]);
-
-        register_rest_route('dbg/v1', '/projects/(?P<id>\d+)/restore', [
-            ['methods' => 'PATCH', 'callback' => [$this, 'restoreProject'], 'permission_callback' => [$this->gate, 'canManage']],
-        ]);
-
-        register_rest_route('dbg/v1', '/projects/(?P<id>\d+)/status', [
-            ['methods' => 'PATCH', 'callback' => [$this, 'changeStatus'], 'permission_callback' => [$this->gate, 'canManage']],
-        ]);
-
-        register_rest_route('dbg/v1', '/projects/(?P<id>\d+)/events', [
-            ['methods' => 'GET', 'callback' => [$this, 'projectEvents'], 'permission_callback' => [$this->gate, 'canRead']],
-        ]);
+        register_rest_route('dbg/v1', '/projects/(?P<id>\d+)/restore', [['methods' => 'PATCH', 'callback' => [$this, 'restoreProject'], 'permission_callback' => [$this->gate, 'canManage']]]);
+        register_rest_route('dbg/v1', '/projects/(?P<id>\d+)/status', [['methods' => 'PATCH', 'callback' => [$this, 'changeStatus'], 'permission_callback' => [$this->gate, 'canManage']]]);
+        register_rest_route('dbg/v1', '/projects/(?P<id>\d+)/events', [['methods' => 'GET', 'callback' => [$this, 'projectEvents'], 'permission_callback' => [$this->gate, 'canRead']]]);
     }
 
     public function listProjects(WP_REST_Request $request): WP_REST_Response
@@ -83,9 +73,10 @@ class ProjectRoutes
         $payload = $request->get_json_params() ?: [];
         $validation = $this->validatePayload($payload, true);
         if ($validation instanceof WP_REST_Response) { return $validation; }
+        $errors = $this->service->validationErrors($payload, true);
+        if (!empty($errors)) { return ApiResponse::validation($errors); }
         $id = $this->service->create($payload);
-        if ($id <= 0) { return ApiResponse::validation(['Organisation, contact, or owner is invalid.']); }
-        return ApiResponse::created(['id' => $id, 'message' => 'Project created']);
+        return $id > 0 ? ApiResponse::created(['id' => $id, 'message' => 'Project created']) : ApiResponse::validation(['Project could not be created.']);
     }
 
     public function updateProject(WP_REST_Request $request): WP_REST_Response
@@ -93,24 +84,21 @@ class ProjectRoutes
         $payload = $request->get_json_params() ?: [];
         $validation = $this->validatePayload($payload, false);
         if ($validation instanceof WP_REST_Response) { return $validation; }
+        $errors = $this->service->validationErrors($payload, false, (int) $request['id']);
+        if (!empty($errors)) { return ApiResponse::validation($errors); }
         return ApiResponse::ok(['updated' => $this->service->update((int) $request['id'], $payload)]);
     }
 
-    public function archiveProject(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]);
-    }
-
-    public function restoreProject(WP_REST_Request $request): WP_REST_Response
-    {
-        return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]);
-    }
+    public function archiveProject(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['archived' => $this->service->archive((int) $request['id'])]); }
+    public function restoreProject(WP_REST_Request $request): WP_REST_Response { return ApiResponse::ok(['restored' => $this->service->restore((int) $request['id'])]); }
 
     public function changeStatus(WP_REST_Request $request): WP_REST_Response
     {
         $payload = $request->get_json_params() ?: [];
         $status = sanitize_key($payload['status'] ?? '');
         if ($status === '') { return ApiResponse::validation(['Status is required.']); }
+        $allowed = $this->service->allowedValues();
+        if (!in_array($status, $allowed['statuses'], true)) { return ApiResponse::validation(['Status is invalid.']); }
         return ApiResponse::ok(['updated' => $this->service->changeStatus((int) $request['id'], $status)]);
     }
 
@@ -122,14 +110,9 @@ class ProjectRoutes
     private function validatePayload(array $payload, bool $create): ?WP_REST_Response
     {
         $validator = new ApiValidator();
-        if ($create) {
-            $validator->positiveInt('organisation_id', 'Organisation ID', $payload)->required('name', 'Project name', $payload);
-        }
+        if ($create) { $validator->positiveInt('organisation_id', 'Organisation ID', $payload)->required('name', 'Project name', $payload); }
         $allowed = $this->service->allowedValues();
-        $validator
-            ->maxLength('project_number', 'Project number', 64, $payload)
-            ->maxLength('name', 'Project name', 255, $payload)
-            ->maxLength('currency', 'Currency', 8, $payload);
+        $validator->maxLength('project_number', 'Project number', 64, $payload)->maxLength('name', 'Project name', 255, $payload)->maxLength('currency', 'Currency', 8, $payload);
         if (isset($payload['type'])) { $validator->allowedValue('type', 'Type', $allowed['types'], $payload); }
         if (isset($payload['status'])) { $validator->allowedValue('status', 'Status', $allowed['statuses'], $payload); }
         if (isset($payload['priority'])) { $validator->allowedValue('priority', 'Priority', $allowed['priorities'], $payload); }
