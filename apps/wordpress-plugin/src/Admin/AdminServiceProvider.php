@@ -13,6 +13,7 @@ class AdminServiceProvider
         (new OrganisationUserAdminHandler())->register();
         (new ProjectAdminHandler())->register();
         (new AssetAdminHandler())->register();
+        (new QuoteAdminHandler())->register();
         (new MediaAjaxUploadHandler())->register();
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
@@ -35,6 +36,7 @@ class AdminServiceProvider
         add_submenu_page('dbg-platform', 'Organisation Users', 'Organisation Users', 'manage_options', 'dbg-platform-organisation-users', [$this, 'renderOrganisationUsers']);
         add_submenu_page('dbg-platform', 'Projects', 'Projects', 'manage_options', 'dbg-platform-projects', [$this, 'renderProjects']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
+        add_submenu_page('dbg-platform', 'Quotes', 'Quotes', 'manage_options', 'dbg-platform-quotes', [$this, 'renderQuotes']);
         add_submenu_page('dbg-platform', 'Media Health', 'Media Health', 'manage_options', 'dbg-platform-media-health', [$this, 'renderMediaHealth']);
         add_submenu_page('dbg-platform', 'Media Maintenance', 'Media Maintenance', 'manage_options', 'dbg-platform-media-maintenance', [$this, 'renderMediaMaintenance']);
         add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
@@ -63,6 +65,7 @@ class AdminServiceProvider
     public function renderOrganisationUsers(): void { $this->view('organisation-users'); }
     public function renderProjects(): void { $this->view('projects'); }
     public function renderAssets(): void { $this->view('assets'); }
+    public function renderQuotes(): void { $this->view('quotes'); }
     public function renderMediaHealth(): void { $this->view('media-health'); }
     public function renderMediaMaintenance(): void { $this->view('media-maintenance'); }
     public function renderMedia(): void { $this->view('media'); }
