@@ -11,7 +11,7 @@ class Migrator
         $charset = $wpdb->get_charset_collate();
         $prefix = $wpdb->prefix . 'dbg_';
         foreach ($this->tables($prefix, $charset) as $sql) { dbDelta($sql); }
-        update_option('dbg_platform_db_version', '0.2.0');
+        update_option('dbg_platform_db_version', '0.2.1');
     }
 
     private function tables(string $prefix, string $charset): array
@@ -62,11 +62,16 @@ class Migrator
                 PRIMARY KEY (id), KEY organisation_id (organisation_id), KEY email (email), KEY is_primary (is_primary), KEY status (status)
             ) {$charset};",
             "CREATE TABLE {$prefix}organisation_users (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 organisation_id BIGINT UNSIGNED NOT NULL,
                 user_id BIGINT UNSIGNED NOT NULL,
-                role VARCHAR(64) NOT NULL DEFAULT 'member',
+                role VARCHAR(64) NOT NULL DEFAULT 'viewer',
+                is_owner TINYINT(1) NOT NULL DEFAULT 0,
+                status VARCHAR(64) NOT NULL DEFAULT 'active',
                 created_at DATETIME NOT NULL,
-                PRIMARY KEY (organisation_id, user_id), KEY organisation_id (organisation_id), KEY user_id (user_id), KEY role (role)
+                updated_at DATETIME NOT NULL,
+                archived_at DATETIME NULL,
+                PRIMARY KEY (id), UNIQUE KEY organisation_user (organisation_id, user_id), KEY organisation_id (organisation_id), KEY user_id (user_id), KEY role (role), KEY is_owner (is_owner), KEY status (status)
             ) {$charset};",
             "CREATE TABLE {$prefix}organisation_settings (
                 organisation_id BIGINT UNSIGNED NOT NULL,
