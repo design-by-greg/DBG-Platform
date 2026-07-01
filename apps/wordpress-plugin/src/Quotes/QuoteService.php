@@ -40,8 +40,7 @@ class QuoteService
 
     public function create(array $data): int
     {
-        $errors = $this->validationErrors($data, true);
-        if (!empty($errors)) { return 0; }
+        if (!empty($this->validationErrors($data, true))) { return 0; }
         $payload = $this->normalise($data, true);
         $payload['uuid'] = $payload['uuid'] ?? wp_generate_uuid4();
         $payload['quote_number'] = $payload['quote_number'] ?: $this->quotes->nextQuoteNumber();
@@ -57,9 +56,7 @@ class QuoteService
     public function update(int $id, array $data): bool
     {
         $before = $this->findWithLines($id);
-        if (!$before) { return false; }
-        $errors = $this->validationErrors($data, false, $id);
-        if (!empty($errors)) { return false; }
+        if (!$before || !empty($this->validationErrors($data, false, $id))) { return false; }
         $payload = $this->normalise($data, false);
         $updated = $this->quotes->update($id, $payload);
         if (array_key_exists('lines', $data)) { $this->replaceLines($id, (array) $data['lines']); }
@@ -125,6 +122,8 @@ class QuoteService
         if ($create && empty($merged['organisation_id'])) { $errors[] = 'Organisation is required.'; }
         if ($create && trim((string) ($merged['title'] ?? '')) === '') { $errors[] = 'Quote title is required.'; }
         if (isset($merged['title']) && strlen((string) $merged['title']) > 255) { $errors[] = 'Quote title must be 255 characters or less.'; }
+        if (isset($merged['quote_number']) && strlen((string) $merged['quote_number']) > 64) { $errors[] = 'Quote number must be 64 characters or less.'; }
+        if (!empty($merged['quote_number']) && $this->quoteNumberExists((string) $merged['quote_number'], $quoteId)) { $errors[] = 'Quote number already exists.'; }
         if (!$this->isValidOrganisation(absint($merged['organisation_id'] ?? 0))) { $errors[] = 'Organisation is invalid or archived.'; }
         if (!$this->isValidProject($merged)) { $errors[] = 'Project must belong to the selected organisation.'; }
         if (!$this->isValidContact($merged)) { $errors[] = 'Contact must belong to the selected organisation and be active.'; }
@@ -164,11 +163,7 @@ class QuoteService
         foreach (['organisation_id', 'project_id', 'contact_id'] as $field) { if (array_key_exists($field, $data)) { $payload[$field] = absint($data[$field]) ?: null; } }
         if (array_key_exists('status', $data)) { $payload['status'] = sanitize_key($data['status']); }
         if (array_key_exists('currency', $data)) { $payload['currency'] = strtoupper(sanitize_key($data['currency'])); }
-        if ($create) {
-            $payload['quote_number'] = $payload['quote_number'] ?? '';
-            $payload['status'] = $payload['status'] ?? 'draft';
-            $payload['currency'] = $payload['currency'] ?? 'EUR';
-        }
+        if ($create) { $payload['quote_number'] = $payload['quote_number'] ?? ''; $payload['status'] = $payload['status'] ?? 'draft'; $payload['currency'] = $payload['currency'] ?? 'EUR'; }
         if (isset($payload['status']) && !in_array($payload['status'], $this->statuses, true)) { $payload['status'] = 'draft'; }
         if (isset($payload['currency']) && !in_array($payload['currency'], $this->currencies, true)) { $payload['currency'] = 'EUR'; }
         return $payload;
@@ -196,9 +191,9 @@ class QuoteService
     {
         $errors = [];
         foreach ($lines as $index => $line) {
-            $line = (array) $line;
-            $label = 'Line ' . ($index + 1) . ': ';
+            $line = (array) $line; $label = 'Line ' . ($index + 1) . ': ';
             if (trim((string) ($line['title'] ?? '')) === '') { $errors[] = $label . 'title is required.'; }
+            if (isset($line['title']) && strlen((string) $line['title']) > 255) { $errors[] = $label . 'title must be 255 characters or less.'; }
             if (!empty($line['line_type']) && !in_array(sanitize_key($line['line_type']), $this->lineTypes, true)) { $errors[] = $label . 'line type is invalid.'; }
             if (!empty($line['unit']) && !in_array(sanitize_key($line['unit']), $this->units, true)) { $errors[] = $label . 'unit is invalid.'; }
             if (isset($line['quantity']) && (float) $line['quantity'] < 0) { $errors[] = $label . 'quantity cannot be negative.'; }
@@ -208,6 +203,12 @@ class QuoteService
             if (!empty($line['asset_id']) && !$this->isValidAsset(absint($line['asset_id']), $organisationId)) { $errors[] = $label . 'asset must belong to the selected organisation.'; }
         }
         return $errors;
+    }
+
+    private function quoteNumberExists(string $quoteNumber, ?int $exceptId): bool
+    {
+        $existing = $this->quotes->findByNumber($quoteNumber);
+        return $existing && (!$exceptId || absint($existing['id']) !== $exceptId);
     }
 
     private function isDate(string $value): bool
