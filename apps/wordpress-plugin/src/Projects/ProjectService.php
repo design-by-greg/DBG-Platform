@@ -34,11 +34,8 @@ class ProjectService
 
     public function create(array $data): int
     {
+        if (!empty($this->validationErrors($data, true))) { return 0; }
         $payload = $this->normalise($data, true);
-        if (!$this->isValidOrganisation(absint($payload['organisation_id'] ?? 0))) { return 0; }
-        if (!$this->isValidContact($payload)) { return 0; }
-        if (!$this->isValidOwner($payload)) { return 0; }
-
         $payload['uuid'] = $payload['uuid'] ?? wp_generate_uuid4();
         $payload['project_number'] = $payload['project_number'] ?: $this->projects->nextProjectNumber();
         $payload['created_by'] = get_current_user_id() ?: null;
@@ -54,13 +51,8 @@ class ProjectService
     public function update(int $id, array $data): bool
     {
         $before = $this->projects->find($id);
-        if (!$before) { return false; }
+        if (!$before || !empty($this->validationErrors($data, false, $id))) { return false; }
         $payload = $this->normalise($data, false);
-        $merged = array_merge($before, $payload);
-        if (!$this->isValidOrganisation(absint($merged['organisation_id'] ?? 0))) { return false; }
-        if (!$this->isValidContact($merged)) { return false; }
-        if (!$this->isValidOwner($merged)) { return false; }
-
         $updated = $this->projects->update($id, $payload);
         $after = $this->projects->find($id);
         $this->events->record($id, 'updated', 'Project updated', ['before' => $before, 'after' => $after, 'changes' => $payload]);
@@ -92,17 +84,40 @@ class ProjectService
 
     public function changeStatus(int $id, string $status): bool
     {
+        $status = sanitize_key($status);
         if (!in_array($status, $this->statuses, true)) { return false; }
         $before = $this->projects->find($id);
         if (!$before) { return false; }
         $payload = ['status' => $status];
         if ($status === 'production' && empty($before['started_at'])) { $payload['started_at'] = current_time('mysql'); }
         if ($status === 'delivered') { $payload['completed_at'] = current_time('mysql'); }
+        if ($status !== 'delivered' && !empty($before['completed_at']) && in_array($status, ['draft', 'quote', 'approved', 'production'], true)) { $payload['completed_at'] = null; }
         $done = $this->projects->update($id, $payload);
         $after = $this->projects->find($id);
         $this->events->record($id, 'status_changed', 'Project status changed to ' . $status, ['before' => $before, 'after' => $after]);
-        $this->audit->record('status_changed', 'project', $id, ['before' => $before, 'after' => $after, 'status' => $status]);
+        $this->audit->record('status_changed', 'project', $id, ['before' => $before, 'after' => $after, 'status' => $status, 'updated' => $done]);
         return $done;
+    }
+
+    public function validationErrors(array $data, bool $create, ?int $projectId = null): array
+    {
+        $errors = [];
+        $current = $projectId ? ($this->projects->find($projectId) ?: []) : [];
+        $merged = array_merge($current, $this->normalise($data, $create));
+
+        if ($create && empty($merged['organisation_id'])) { $errors[] = 'Organisation is required.'; }
+        if ($create && trim((string) ($merged['name'] ?? '')) === '') { $errors[] = 'Project name is required.'; }
+        if (isset($merged['name']) && strlen((string) $merged['name']) > 255) { $errors[] = 'Project name must be 255 characters or less.'; }
+        if (isset($merged['project_number']) && strlen((string) $merged['project_number']) > 64) { $errors[] = 'Project number must be 64 characters or less.'; }
+        if (!$this->isValidOrganisation(absint($merged['organisation_id'] ?? 0))) { $errors[] = 'Organisation is invalid or archived.'; }
+        if (!$this->isValidContact($merged)) { $errors[] = 'Contact must belong to the selected organisation and be active.'; }
+        if (!$this->isValidOwner($merged)) { $errors[] = 'Owner must be an active user of the selected organisation.'; }
+        if (!empty($merged['due_date']) && !$this->isDate((string) $merged['due_date'])) { $errors[] = 'Due date must use YYYY-MM-DD format.'; }
+        if (isset($merged['budget_estimate']) && (float) $merged['budget_estimate'] < 0) { $errors[] = 'Budget estimate cannot be negative.'; }
+        foreach (['type' => $this->types, 'status' => $this->statuses, 'priority' => $this->priorities, 'currency' => $this->currencies] as $field => $allowed) {
+            if (isset($merged[$field]) && !in_array((string) $merged[$field], $allowed, true)) { $errors[] = ucfirst($field) . ' is invalid.'; }
+        }
+        return $errors;
     }
 
     public function allowedValues(): array
@@ -113,9 +128,10 @@ class ProjectService
     private function normalise(array $data, bool $create): array
     {
         $payload = [];
-        foreach (['uuid', 'project_number', 'name', 'description', 'due_date', 'started_at', 'completed_at'] as $field) {
+        foreach (['uuid', 'project_number', 'name', 'due_date', 'started_at', 'completed_at'] as $field) {
             if (array_key_exists($field, $data)) { $payload[$field] = is_string($data[$field]) ? sanitize_text_field($data[$field]) : $data[$field]; }
         }
+        if (array_key_exists('description', $data)) { $payload['description'] = sanitize_textarea_field($data['description']); }
         foreach (['organisation_id', 'contact_id', 'owner_user_id'] as $field) {
             if (array_key_exists($field, $data)) { $payload[$field] = absint($data[$field]) ?: null; }
         }
@@ -136,6 +152,12 @@ class ProjectService
         if (isset($payload['priority']) && !in_array($payload['priority'], $this->priorities, true)) { $payload['priority'] = 'normal'; }
         if (isset($payload['currency']) && !in_array($payload['currency'], $this->currencies, true)) { $payload['currency'] = 'EUR'; }
         return $payload;
+    }
+
+    private function isDate(string $value): bool
+    {
+        $date = \DateTime::createFromFormat('Y-m-d', $value);
+        return $date && $date->format('Y-m-d') === $value;
     }
 
     private function isValidOrganisation(int $organisationId): bool
