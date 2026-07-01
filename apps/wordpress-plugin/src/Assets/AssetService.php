@@ -111,15 +111,20 @@ class AssetService
         $current = $assetId ? ($this->assets->find($assetId) ?: []) : [];
         $merged = array_merge($current, $this->normalise($data, $create));
 
+        if ($assetId && empty($current)) { $errors[] = 'Asset not found.'; }
         if ($create && empty($merged['organisation_id'])) { $errors[] = 'Organisation is required.'; }
         if ($create && trim((string) ($merged['name'] ?? '')) === '') { $errors[] = 'Asset name is required.'; }
         if (isset($merged['name']) && strlen((string) $merged['name']) > 255) { $errors[] = 'Asset name must be 255 characters or less.'; }
+        if (isset($merged['uuid']) && strlen((string) $merged['uuid']) > 36) { $errors[] = 'UUID must be 36 characters or less.'; }
         if (!$this->isValidOrganisation(absint($merged['organisation_id'] ?? 0))) { $errors[] = 'Organisation is invalid or archived.'; }
         if (!$this->isValidProject($merged)) { $errors[] = 'Project must belong to the selected organisation.'; }
         if (!$this->isValidParent($merged, $assetId)) { $errors[] = 'Parent asset must belong to the selected organisation and cannot be itself.'; }
+        if (!$this->isValidCurrentFile($merged)) { $errors[] = 'Current file must belong to the selected asset, project, or organisation.'; }
+        if (isset($merged['version_number']) && absint($merged['version_number']) < 1) { $errors[] = 'Version number must be positive.'; }
         foreach (['type' => $this->types, 'category' => $this->categories, 'status' => $this->statuses, 'approval_status' => $this->approvalStatuses] as $field => $allowed) {
             if (isset($merged[$field]) && !in_array((string) $merged[$field], $allowed, true)) { $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is invalid.'; }
         }
+        if (isset($data['metadata']) && !is_array($data['metadata'])) { $errors[] = 'Metadata must be an object.'; }
         return $errors;
     }
 
@@ -141,7 +146,7 @@ class AssetService
         foreach (['type', 'category', 'status', 'approval_status'] as $field) {
             if (array_key_exists($field, $data)) { $payload[$field] = sanitize_key($data[$field]); }
         }
-        if (array_key_exists('metadata', $data)) { $payload['metadata'] = (array) $data['metadata']; }
+        if (array_key_exists('metadata', $data)) { $payload['metadata'] = $this->sanitizeMetadata((array) $data['metadata']); }
 
         if ($create) {
             $payload['type'] = $payload['type'] ?? 'document';
@@ -155,6 +160,18 @@ class AssetService
         if (isset($payload['status']) && !in_array($payload['status'], $this->statuses, true)) { $payload['status'] = 'draft'; }
         if (isset($payload['approval_status']) && !in_array($payload['approval_status'], $this->approvalStatuses, true)) { $payload['approval_status'] = 'not_required'; }
         return $payload;
+    }
+
+    private function sanitizeMetadata(array $metadata): array
+    {
+        $clean = [];
+        foreach ($metadata as $key => $value) {
+            $safeKey = sanitize_key((string) $key);
+            if ($safeKey === '') { continue; }
+            if (is_array($value)) { $clean[$safeKey] = $this->sanitizeMetadata($value); continue; }
+            $clean[$safeKey] = is_scalar($value) ? sanitize_text_field((string) $value) : '';
+        }
+        return $clean;
     }
 
     private function isValidOrganisation(int $organisationId): bool
@@ -176,5 +193,16 @@ class AssetService
         if ($assetId && absint($payload['parent_asset_id']) === $assetId) { return false; }
         $parent = $this->assets->find(absint($payload['parent_asset_id']));
         return $parent && absint($parent['organisation_id']) === absint($payload['organisation_id']) && ($parent['status'] ?? '') !== 'archived';
+    }
+
+    private function isValidCurrentFile(array $payload): bool
+    {
+        if (empty($payload['current_file_record_id'])) { return true; }
+        global $wpdb;
+        $file = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}dbg_file_records WHERE id = %d", absint($payload['current_file_record_id'])), ARRAY_A);
+        if (!$file || ($file['status'] ?? '') === 'archived') { return false; }
+        if (!empty($file['organisation_id']) && absint($file['organisation_id']) !== absint($payload['organisation_id'])) { return false; }
+        if (!empty($payload['project_id']) && !empty($file['project_id']) && absint($file['project_id']) !== absint($payload['project_id'])) { return false; }
+        return true;
     }
 }
