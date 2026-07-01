@@ -30,6 +30,13 @@ class QuoteRepository
         return $row ?: null;
     }
 
+    public function findByNumber(string $quoteNumber): ?array
+    {
+        global $wpdb;
+        $row = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}dbg_quotes WHERE quote_number = %s", sanitize_text_field($quoteNumber)), ARRAY_A);
+        return $row ?: null;
+    }
+
     public function create(array $data): int
     {
         global $wpdb;
