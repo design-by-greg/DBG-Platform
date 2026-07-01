@@ -14,6 +14,7 @@ class OrganisationContactAdminHandler
         add_action('admin_post_dbg_archive_organisation_contact', [$this, 'archive']);
         add_action('admin_post_dbg_restore_organisation_contact', [$this, 'restore']);
         add_action('admin_post_dbg_main_organisation_contact', [$this, 'makeMain']);
+        add_action('admin_post_dbg_bulk_organisation_contacts', [$this, 'bulk']);
         add_action('admin_post_dbg_update_organisation_settings', [$this, 'settings']);
     }
 
@@ -64,6 +65,27 @@ class OrganisationContactAdminHandler
         $contactId = absint($_POST['contact_id'] ?? 0);
         $organisationId = absint($_POST['organisation_id'] ?? 0);
         (new OrganisationContactService())->makeMain($contactId);
+        $this->redirect('updated', [], $organisationId);
+    }
+
+    public function bulk(): void
+    {
+        $this->guard('dbg_bulk_organisation_contacts');
+        $organisationId = absint($_POST['organisation_id'] ?? 0);
+        $bulkAction = sanitize_key($_POST['bulk_action'] ?? '');
+        $ids = array_values(array_filter(array_map('absint', (array) ($_POST['contact_ids'] ?? []))));
+
+        if (empty($ids)) { $this->redirect('error', ['Select at least one contact.'], $organisationId); }
+        if (!in_array($bulkAction, ['archive', 'restore'], true)) { $this->redirect('error', ['Bulk action is invalid.'], $organisationId); }
+
+        $service = new OrganisationContactService();
+        $count = 0;
+        foreach ($ids as $id) {
+            $done = $bulkAction === 'archive' ? $service->archive($id) : $service->restore($id);
+            if ($done) { $count++; }
+        }
+
+        set_transient('dbg_platform_form_errors_' . get_current_user_id(), [sprintf('%d contact(s) processed.', $count)], 60);
         $this->redirect('updated', [], $organisationId);
     }
 
