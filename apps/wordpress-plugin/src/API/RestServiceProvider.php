@@ -11,6 +11,7 @@ use DBGPlatform\API\Routes\FileMetadataRoutes;
 use DBGPlatform\API\Routes\FileOrphanRoutes;
 use DBGPlatform\API\Routes\FileRoutes;
 use DBGPlatform\API\Routes\IdentityRoutes;
+use DBGPlatform\API\Routes\InvoiceRoutes;
 use DBGPlatform\API\Routes\MediaFolderRoutes;
 use DBGPlatform\API\Routes\MediaHealthRoutes;
 use DBGPlatform\API\Routes\MediaTagRoutes;
@@ -37,6 +38,7 @@ class RestServiceProvider
         (new AssetRoutes())->register();
         (new QuoteRoutes())->register();
         (new OrderRoutes())->register();
+        (new InvoiceRoutes())->register();
         (new CommerceRoutes())->register();
         (new AuditRoutes())->register();
         (new SettingsRoutes())->register();
