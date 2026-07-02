@@ -47,7 +47,7 @@ class OrderService
         $this->replaceLines($id, (array) ($data['lines'] ?? []));
         $after = $this->findWithLines($id);
         $this->events->record($id, 'created', 'Order created', ['after' => $after]);
-        $this->audit->record('created', 'order', $id, ['after' => $after]);
+        $this->audit->record('created', 'order', $id, ['after' => $after, 'input' => $payload]);
         return $id;
     }
 
@@ -55,39 +55,50 @@ class OrderService
     {
         $before = $this->findWithLines($id);
         if (!$before || !empty($this->validationErrors($data, false, $id))) { return false; }
-        $updated = $this->orders->update($id, $this->normalise($data, false));
+        $payload = $this->normalise($data, false);
+        $updated = $this->orders->update($id, $payload);
         if (array_key_exists('lines', $data)) { $this->replaceLines($id, (array) $data['lines']); }
         $after = $this->findWithLines($id);
-        $this->events->record($id, 'updated', 'Order updated', ['before' => $before, 'after' => $after]);
-        $this->audit->record('updated', 'order', $id, ['before' => $before, 'after' => $after, 'updated' => $updated]);
+        $this->events->record($id, 'updated', 'Order updated', ['before' => $before, 'after' => $after, 'changes' => $payload]);
+        $this->audit->record('updated', 'order', $id, ['before' => $before, 'after' => $after, 'changes' => $payload, 'updated' => $updated]);
         return $updated;
     }
 
     public function archive(int $id): bool
     {
+        $before = $this->findWithLines($id);
+        if (!$before) { return false; }
         $done = $this->orders->archive($id);
-        $this->events->record($id, 'archived', 'Order archived');
-        $this->audit->record('archived', 'order', $id, ['archived' => $done]);
+        $after = $this->findWithLines($id);
+        $this->events->record($id, 'archived', 'Order archived', ['before' => $before, 'after' => $after]);
+        $this->audit->record('archived', 'order', $id, ['before' => $before, 'after' => $after, 'archived' => $done]);
         return $done;
     }
 
     public function restore(int $id): bool
     {
+        $before = $this->findWithLines($id);
+        if (!$before) { return false; }
         $done = $this->orders->restore($id);
-        $this->events->record($id, 'restored', 'Order restored');
-        $this->audit->record('restored', 'order', $id, ['restored' => $done]);
+        $after = $this->findWithLines($id);
+        $this->events->record($id, 'restored', 'Order restored', ['before' => $before, 'after' => $after]);
+        $this->audit->record('restored', 'order', $id, ['before' => $before, 'after' => $after, 'restored' => $done]);
         return $done;
     }
 
     public function changeStatus(int $id, string $status): bool
     {
+        $status = sanitize_key($status);
         if (!in_array($status, $this->statuses, true)) { return false; }
-        $payload = ['status' => sanitize_key($status)];
+        $before = $this->findWithLines($id);
+        if (!$before) { return false; }
+        $payload = ['status' => $status];
         if ($status === 'in_progress') { $payload['production_started_at'] = current_time('mysql'); }
         if ($status === 'completed') { $payload['completed_at'] = current_time('mysql'); }
         $done = $this->orders->update($id, $payload);
-        $this->events->record($id, 'status_changed', 'Order status changed to ' . $status);
-        $this->audit->record('status_changed', 'order', $id, ['status' => $status, 'updated' => $done]);
+        $after = $this->findWithLines($id);
+        $this->events->record($id, 'status_changed', 'Order status changed to ' . $status, ['before' => $before, 'after' => $after]);
+        $this->audit->record('status_changed', 'order', $id, ['before' => $before, 'after' => $after, 'status' => $status, 'updated' => $done]);
         return $done;
     }
 
@@ -106,13 +117,17 @@ class OrderService
         $merged = array_merge($current, $this->normalise($data, $create));
         if ($create && empty($merged['organisation_id'])) { $errors[] = 'Organisation is required.'; }
         if ($create && trim((string) ($merged['title'] ?? '')) === '') { $errors[] = 'Order title is required.'; }
+        if (isset($merged['title']) && strlen((string) $merged['title']) > 255) { $errors[] = 'Order title must be 255 characters or less.'; }
+        if (isset($merged['order_number']) && strlen((string) $merged['order_number']) > 64) { $errors[] = 'Order number must be 64 characters or less.'; }
         if (!$this->validOrganisation(absint($merged['organisation_id'] ?? 0))) { $errors[] = 'Organisation is invalid or archived.'; }
         if (!$this->validProject($merged)) { $errors[] = 'Project must belong to the selected organisation.'; }
         if (!$this->validQuote($merged)) { $errors[] = 'Quote must belong to the selected organisation.'; }
         if (!$this->validContact($merged)) { $errors[] = 'Contact must belong to the selected organisation.'; }
+        if (!empty($merged['due_date']) && !$this->isDate((string) $merged['due_date'])) { $errors[] = 'Due date must use YYYY-MM-DD format.'; }
         foreach (['status' => $this->statuses, 'payment_status' => $this->paymentStatuses, 'production_status' => $this->productionStatuses, 'fulfillment_status' => $this->fulfillmentStatuses, 'currency' => $this->currencies] as $field => $allowed) {
-            if (isset($merged[$field]) && !in_array((string) $merged[$field], $allowed, true)) { $errors[] = ucfirst($field) . ' is invalid.'; }
+            if (isset($merged[$field]) && !in_array((string) $merged[$field], $allowed, true)) { $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is invalid.'; }
         }
+        if (array_key_exists('lines', $data)) { $errors = array_merge($errors, $this->lineValidationErrors((array) $data['lines'])); }
         return $errors;
     }
 
@@ -143,8 +158,29 @@ class OrderService
         return $payload;
     }
 
+    private function lineValidationErrors(array $lines): array
+    {
+        $errors = [];
+        foreach ($lines as $index => $line) {
+            $line = (array) $line;
+            $label = 'Line ' . ($index + 1) . ': ';
+            if (trim((string) ($line['title'] ?? '')) === '') { $errors[] = $label . 'title is required.'; }
+            if (isset($line['quantity']) && (float) $line['quantity'] < 0) { $errors[] = $label . 'quantity cannot be negative.'; }
+            if (isset($line['unit_price_ht']) && (float) $line['unit_price_ht'] < 0) { $errors[] = $label . 'unit price cannot be negative.'; }
+            if (isset($line['discount_rate']) && ((float) $line['discount_rate'] < 0 || (float) $line['discount_rate'] > 100)) { $errors[] = $label . 'discount must be between 0 and 100.'; }
+            if (isset($line['tax_rate']) && (float) $line['tax_rate'] < 0) { $errors[] = $label . 'tax rate cannot be negative.'; }
+        }
+        return $errors;
+    }
+
+    private function isDate(string $value): bool
+    {
+        $date = \DateTime::createFromFormat('Y-m-d', $value);
+        return $date && $date->format('Y-m-d') === $value;
+    }
+
     private function validOrganisation(int $id): bool { $org = $this->organisations->find($id); return $org && ($org['status'] ?? '') !== 'archived'; }
-    private function validProject(array $p): bool { if (empty($p['project_id'])) { return true; } $project = $this->projects->find(absint($p['project_id'])); return $project && absint($project['organisation_id']) === absint($p['organisation_id']); }
-    private function validQuote(array $p): bool { if (empty($p['quote_id'])) { return true; } $quote = $this->quotes->find(absint($p['quote_id'])); return $quote && absint($quote['organisation_id']) === absint($p['organisation_id']); }
-    private function validContact(array $p): bool { if (empty($p['contact_id'])) { return true; } $contact = $this->contacts->find(absint($p['contact_id'])); return $contact && absint($contact['organisation_id']) === absint($p['organisation_id']); }
+    private function validProject(array $p): bool { if (empty($p['project_id'])) { return true; } $project = $this->projects->find(absint($p['project_id'])); return $project && absint($project['organisation_id']) === absint($p['organisation_id']) && ($project['status'] ?? '') !== 'archived'; }
+    private function validQuote(array $p): bool { if (empty($p['quote_id'])) { return true; } $quote = $this->quotes->find(absint($p['quote_id'])); return $quote && absint($quote['organisation_id']) === absint($p['organisation_id']) && ($quote['status'] ?? '') !== 'archived'; }
+    private function validContact(array $p): bool { if (empty($p['contact_id'])) { return true; } $contact = $this->contacts->find(absint($p['contact_id'])); return $contact && absint($contact['organisation_id']) === absint($p['organisation_id']) && ($contact['status'] ?? '') !== 'archived'; }
 }
