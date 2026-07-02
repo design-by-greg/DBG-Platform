@@ -38,6 +38,11 @@ class InvoiceRepository
         foreach (['status', 'payment_status'] as $field) {
             if (!empty($filters[$field])) { $where[] = $field . ' = %s'; $params[] = sanitize_key($filters[$field]); }
         }
+        if (!empty($filters['search'])) {
+            $where[] = '(title LIKE %s OR invoice_number LIKE %s OR notes LIKE %s)';
+            $term = '%' . $wpdb->esc_like(sanitize_text_field($filters['search'])) . '%';
+            array_push($params, $term, $term, $term);
+        }
         $whereSql = empty($where) ? '' : ' WHERE ' . implode(' AND ', $where);
         $totalSql = 'SELECT COUNT(*) FROM ' . $table . $whereSql;
         $total = $params ? (int) $wpdb->get_var($wpdb->prepare($totalSql, $params)) : (int) $wpdb->get_var($totalSql);
@@ -51,7 +56,7 @@ class InvoiceRepository
         global $wpdb;
         $now = current_time('mysql');
         $totalTtc = max(0, (float) ($data['total_ttc'] ?? 0));
-        $amountPaid = max(0, (float) ($data['amount_paid'] ?? 0));
+        $amountPaid = min($totalTtc, max(0, (float) ($data['amount_paid'] ?? 0)));
         $wpdb->insert($wpdb->prefix . 'dbg_invoices', [
             'uuid' => wp_generate_uuid4(),
             'organisation_id' => absint($data['organisation_id'] ?? 0),
