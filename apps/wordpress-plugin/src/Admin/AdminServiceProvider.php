@@ -14,6 +14,7 @@ class AdminServiceProvider
         (new ProjectAdminHandler())->register();
         (new AssetAdminHandler())->register();
         (new QuoteAdminHandler())->register();
+        (new OrderAdminHandler())->register();
         (new MediaAjaxUploadHandler())->register();
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
@@ -37,6 +38,7 @@ class AdminServiceProvider
         add_submenu_page('dbg-platform', 'Projects', 'Projects', 'manage_options', 'dbg-platform-projects', [$this, 'renderProjects']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
         add_submenu_page('dbg-platform', 'Quotes', 'Quotes', 'manage_options', 'dbg-platform-quotes', [$this, 'renderQuotes']);
+        add_submenu_page('dbg-platform', 'Orders', 'Orders', 'manage_options', 'dbg-platform-orders', [$this, 'renderOrders']);
         add_submenu_page('dbg-platform', 'Media Health', 'Media Health', 'manage_options', 'dbg-platform-media-health', [$this, 'renderMediaHealth']);
         add_submenu_page('dbg-platform', 'Media Maintenance', 'Media Maintenance', 'manage_options', 'dbg-platform-media-maintenance', [$this, 'renderMediaMaintenance']);
         add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
@@ -66,6 +68,7 @@ class AdminServiceProvider
     public function renderProjects(): void { $this->view('projects'); }
     public function renderAssets(): void { $this->view('assets'); }
     public function renderQuotes(): void { $this->view('quotes'); }
+    public function renderOrders(): void { $this->view('orders'); }
     public function renderMediaHealth(): void { $this->view('media-health'); }
     public function renderMediaMaintenance(): void { $this->view('media-maintenance'); }
     public function renderMedia(): void { $this->view('media'); }
