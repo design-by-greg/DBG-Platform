@@ -4,15 +4,18 @@ namespace DBGPlatform\Assets;
 
 use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
-use DBGPlatform\Database\Repositories\OrganisationRepository;
-use DBGPlatform\Database\Repositories\ProjectRepository;
 
+/**
+ * Note: organisation_id and project_id are now foreign references into the
+ * ATLAS ERP Base44 app, not local WordPress tables (see 2026-07-02 migration,
+ * books/architecture/07-wordpress-base44-roles.md). This service only does
+ * shape/format validation locally; cross-system existence validation against
+ * Base44 is a follow-up task (API bridge), not yet implemented.
+ */
 class AssetService
 {
     private AssetRepository $assets;
     private AssetEventRepository $events;
-    private OrganisationRepository $organisations;
-    private ProjectRepository $projects;
     private AuditLogger $audit;
 
     private array $types = ['document', 'logo', 'brand_guide', 'source_file', 'proof', 'mockup', 'production_file', 'photo', 'template', 'other'];
@@ -24,8 +27,6 @@ class AssetService
     {
         $this->assets = new AssetRepository();
         $this->events = new AssetEventRepository();
-        $this->organisations = new OrganisationRepository();
-        $this->projects = new ProjectRepository();
         $this->audit = new AuditLogger();
     }
 
@@ -116,8 +117,7 @@ class AssetService
         if ($create && trim((string) ($merged['name'] ?? '')) === '') { $errors[] = 'Asset name is required.'; }
         if (isset($merged['name']) && strlen((string) $merged['name']) > 255) { $errors[] = 'Asset name must be 255 characters or less.'; }
         if (isset($merged['uuid']) && strlen((string) $merged['uuid']) > 36) { $errors[] = 'UUID must be 36 characters or less.'; }
-        if (!$this->isValidOrganisation(absint($merged['organisation_id'] ?? 0))) { $errors[] = 'Organisation is invalid or archived.'; }
-        if (!$this->isValidProject($merged)) { $errors[] = 'Project must belong to the selected organisation.'; }
+        if (empty($merged['organisation_id']) || absint($merged['organisation_id']) <= 0) { $errors[] = 'Organisation is invalid.'; }
         if (!$this->isValidParent($merged, $assetId)) { $errors[] = 'Parent asset must belong to the selected organisation and cannot be itself.'; }
         if (!$this->isValidCurrentFile($merged)) { $errors[] = 'Current file must belong to the selected asset, project, or organisation.'; }
         if (isset($merged['version_number']) && absint($merged['version_number']) < 1) { $errors[] = 'Version number must be positive.'; }
@@ -172,19 +172,6 @@ class AssetService
             $clean[$safeKey] = is_scalar($value) ? sanitize_text_field((string) $value) : '';
         }
         return $clean;
-    }
-
-    private function isValidOrganisation(int $organisationId): bool
-    {
-        $organisation = $this->organisations->find($organisationId);
-        return $organisation && ($organisation['status'] ?? '') !== 'archived';
-    }
-
-    private function isValidProject(array $payload): bool
-    {
-        if (empty($payload['project_id'])) { return true; }
-        $project = $this->projects->find(absint($payload['project_id']));
-        return $project && absint($project['organisation_id']) === absint($payload['organisation_id']) && ($project['status'] ?? '') !== 'archived';
     }
 
     private function isValidParent(array $payload, ?int $assetId): bool

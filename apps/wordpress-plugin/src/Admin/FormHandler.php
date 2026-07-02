@@ -7,8 +7,6 @@ use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Database\Repositories\FileVersionRepository;
 use DBGPlatform\Database\Repositories\MediaFolderRepository;
-use DBGPlatform\Database\Repositories\OrganisationRepository;
-use DBGPlatform\Database\Repositories\ProjectRepository;
 use DBGPlatform\Files\FileUploadService;
 use DBGPlatform\Files\SecureDownloadService;
 use DBGPlatform\Settings\SettingsRepository;
@@ -17,12 +15,6 @@ class FormHandler
 {
     public function register(): void
     {
-        add_action('admin_post_dbg_create_organisation', [$this, 'createOrganisation']);
-        add_action('admin_post_dbg_update_organisation', [$this, 'updateOrganisation']);
-        add_action('admin_post_dbg_delete_organisation', [$this, 'deleteOrganisation']);
-        add_action('admin_post_dbg_create_project', [$this, 'createProject']);
-        add_action('admin_post_dbg_update_project', [$this, 'updateProject']);
-        add_action('admin_post_dbg_delete_project', [$this, 'deleteProject']);
         add_action('admin_post_dbg_create_asset', [$this, 'createAsset']);
         add_action('admin_post_dbg_update_asset', [$this, 'updateAsset']);
         add_action('admin_post_dbg_delete_asset', [$this, 'deleteAsset']);
@@ -33,52 +25,6 @@ class FormHandler
         add_action('admin_post_dbg_upload_file_version', [$this, 'uploadFileVersion']);
         add_action('admin_post_dbg_create_media_folder', [$this, 'createMediaFolder']);
         add_action('admin_post_dbg_move_file_folder', [$this, 'moveFileFolder']);
-    }
-
-    public function createOrganisation(): void
-    {
-        $this->guard('dbg_create_organisation');
-        $this->validateOrganisation();
-        (new OrganisationRepository())->create($this->organisationData());
-        $this->redirect('dbg-platform-organisations', 'created');
-    }
-
-    public function updateOrganisation(): void
-    {
-        $this->guard('dbg_update_organisation');
-        $this->validateOrganisation();
-        (new OrganisationRepository())->update(absint($_POST['dbg_id'] ?? 0), $this->organisationData());
-        $this->redirect('dbg-platform-organisations', 'updated');
-    }
-
-    public function deleteOrganisation(): void
-    {
-        $this->guard('dbg_delete_organisation');
-        (new OrganisationRepository())->delete(absint($_POST['dbg_id'] ?? 0));
-        $this->redirect('dbg-platform-organisations', 'deleted');
-    }
-
-    public function createProject(): void
-    {
-        $this->guard('dbg_create_project');
-        $this->validateProject();
-        (new ProjectRepository())->create($this->projectData());
-        $this->redirect('dbg-platform-projects', 'created');
-    }
-
-    public function updateProject(): void
-    {
-        $this->guard('dbg_update_project');
-        $this->validateProject();
-        (new ProjectRepository())->update(absint($_POST['dbg_id'] ?? 0), $this->projectData());
-        $this->redirect('dbg-platform-projects', 'updated');
-    }
-
-    public function deleteProject(): void
-    {
-        $this->guard('dbg_delete_project');
-        (new ProjectRepository())->delete(absint($_POST['dbg_id'] ?? 0));
-        $this->redirect('dbg-platform-projects', 'deleted');
     }
 
     public function createAsset(): void
@@ -251,28 +197,6 @@ class FormHandler
         (new SecureDownloadService())->download($fileId);
     }
 
-    private function validateOrganisation(): void
-    {
-        $validator = (new FormValidator())
-            ->required('dbg_organisation_name', 'Organisation name', $_POST)
-            ->minLength('dbg_organisation_name', 'Organisation name', 2, $_POST)
-            ->maxLength('dbg_organisation_name', 'Organisation name', 255, $_POST)
-            ->allowedValue('dbg_organisation_type', 'Organisation type', ['company', 'club', 'association', 'public_body', 'partner'], $_POST);
-        if (!$validator->passes()) {
-            $this->redirect('dbg-platform-organisations', 'error', $validator->errors());
-        }
-    }
-
-    private function validateProject(): void
-    {
-        $validator = (new FormValidator())
-            ->positiveInt('dbg_project_organisation_id', 'Organisation ID', $_POST)
-            ->required('dbg_project_name', 'Project name', $_POST);
-        if (!$validator->passes()) {
-            $this->redirect('dbg-platform-projects', 'error', $validator->errors());
-        }
-    }
-
     private function validateAsset(): void
     {
         $validator = (new FormValidator())
@@ -291,23 +215,6 @@ class FormHandler
         if (!$validator->passes()) {
             $this->redirect('dbg-platform-settings', 'error', $validator->errors());
         }
-    }
-
-    private function organisationData(): array
-    {
-        return [
-            'name' => sanitize_text_field($_POST['dbg_organisation_name'] ?? ''),
-            'type' => sanitize_key($_POST['dbg_organisation_type'] ?? 'company'),
-        ];
-    }
-
-    private function projectData(): array
-    {
-        return [
-            'organisation_id' => absint($_POST['dbg_project_organisation_id'] ?? 0),
-            'name' => sanitize_text_field($_POST['dbg_project_name'] ?? ''),
-            'description' => sanitize_textarea_field($_POST['dbg_project_description'] ?? ''),
-        ];
     }
 
     private function assetData(): array

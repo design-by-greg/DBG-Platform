@@ -2,21 +2,20 @@
 
 namespace DBGPlatform\Admin;
 
+/**
+ * Note: Organisation, Organisation Contact/User, Project, Quote, Order,
+ * Invoice and Payment admin screens were removed from this plugin (2026-07-02).
+ * That business domain now lives entirely in the ATLAS ERP Base44 app, per
+ * books/architecture/07-wordpress-base44-roles.md ("WordPress sells. Base44 operates.").
+ * WordPress keeps only Assets/Media management and plugin-level settings here.
+ */
 class AdminServiceProvider
 {
     public function register(): void
     {
         add_action('admin_menu', [$this, 'registerMenu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
-        (new OrganisationAdminHandler())->register();
-        (new OrganisationContactAdminHandler())->register();
-        (new OrganisationUserAdminHandler())->register();
-        (new ProjectAdminHandler())->register();
         (new AssetAdminHandler())->register();
-        (new QuoteAdminHandler())->register();
-        (new OrderAdminHandler())->register();
-        (new InvoiceAdminHandler())->register();
-        (new PaymentAdminHandler())->register();
         (new MediaAjaxUploadHandler())->register();
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
@@ -34,15 +33,7 @@ class AdminServiceProvider
     {
         add_menu_page('DBG Platform', 'DBG Platform', 'manage_options', 'dbg-platform', [$this, 'renderDashboard'], 'dashicons-admin-generic');
         add_submenu_page('dbg-platform', 'Dashboard', 'Dashboard', 'manage_options', 'dbg-platform', [$this, 'renderDashboard']);
-        add_submenu_page('dbg-platform', 'Organisations', 'Organisations', 'manage_options', 'dbg-platform-organisations', [$this, 'renderOrganisations']);
-        add_submenu_page('dbg-platform', 'Organisation Contacts', 'Organisation Contacts', 'manage_options', 'dbg-platform-organisation-contacts', [$this, 'renderOrganisationContacts']);
-        add_submenu_page('dbg-platform', 'Organisation Users', 'Organisation Users', 'manage_options', 'dbg-platform-organisation-users', [$this, 'renderOrganisationUsers']);
-        add_submenu_page('dbg-platform', 'Projects', 'Projects', 'manage_options', 'dbg-platform-projects', [$this, 'renderProjects']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
-        add_submenu_page('dbg-platform', 'Quotes', 'Quotes', 'manage_options', 'dbg-platform-quotes', [$this, 'renderQuotes']);
-        add_submenu_page('dbg-platform', 'Orders', 'Orders', 'manage_options', 'dbg-platform-orders', [$this, 'renderOrders']);
-        add_submenu_page('dbg-platform', 'Invoices', 'Invoices', 'manage_options', 'dbg-platform-invoices', [$this, 'renderInvoices']);
-        add_submenu_page('dbg-platform', 'Payments', 'Payments', 'manage_options', 'dbg-platform-payments', [$this, 'renderPayments']);
         add_submenu_page('dbg-platform', 'Media Health', 'Media Health', 'manage_options', 'dbg-platform-media-health', [$this, 'renderMediaHealth']);
         add_submenu_page('dbg-platform', 'Media Maintenance', 'Media Maintenance', 'manage_options', 'dbg-platform-media-maintenance', [$this, 'renderMediaMaintenance']);
         add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
@@ -66,15 +57,7 @@ class AdminServiceProvider
     }
 
     public function renderDashboard(): void { $this->view('dashboard'); }
-    public function renderOrganisations(): void { $this->view('organisations'); }
-    public function renderOrganisationContacts(): void { $this->view('organisation-contacts'); }
-    public function renderOrganisationUsers(): void { $this->view('organisation-users'); }
-    public function renderProjects(): void { $this->view('projects'); }
     public function renderAssets(): void { $this->view('assets'); }
-    public function renderQuotes(): void { $this->view('quotes'); }
-    public function renderOrders(): void { $this->view('orders'); }
-    public function renderInvoices(): void { $this->view('invoices'); }
-    public function renderPayments(): void { $this->view('payments'); }
     public function renderMediaHealth(): void { $this->view('media-health'); }
     public function renderMediaMaintenance(): void { $this->view('media-maintenance'); }
     public function renderMedia(): void { $this->view('media'); }

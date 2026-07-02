@@ -2,11 +2,10 @@
 if (!defined('ABSPATH')) { exit; }
 
 $assetRepository = new \DBGPlatform\Database\Repositories\AssetRepository();
-$organisationRepository = new \DBGPlatform\Database\Repositories\OrganisationRepository();
 $eventRepository = new \DBGPlatform\Assets\AssetEventRepository();
 $assetService = new \DBGPlatform\Assets\AssetService();
 $allowed = $assetService->allowedValues();
-$organisations = $organisationRepository->all(['status' => 'active'], 500);
+// Organisations now live in ATLAS ERP (Base44), not locally — referenced by ID only until an API bridge exists.
 $currentPage = max(1, absint($_GET['paged'] ?? 1));
 $perPage = max(10, min(100, absint($_GET['per_page'] ?? 25)));
 $filters = [
@@ -46,7 +45,7 @@ $baseUrl = admin_url('admin.php?page=dbg-platform-assets');
     <div class="dbg-platform-panel"><h2>Filters</h2><form method="get">
         <input type="hidden" name="page" value="dbg-platform-assets">
         <input type="search" name="search" placeholder="Search asset" value="<?php echo esc_attr($filters['search']); ?>">
-        <select name="organisation_id"><option value="0">All organisations</option><?php foreach ($organisations as $org) : ?><option value="<?php echo esc_attr($org['id']); ?>" <?php selected($filters['organisation_id'], absint($org['id'])); ?>><?php echo esc_html($org['name']); ?></option><?php endforeach; ?></select>
+        <input type="number" name="organisation_id" placeholder="Organisation ID (ATLAS ERP)" value="<?php echo esc_attr($filters['organisation_id'] ?: ''); ?>">
         <select name="type"><option value="">All types</option><?php foreach ($allowed['types'] as $type) : ?><option value="<?php echo esc_attr($type); ?>" <?php selected($filters['type'], $type); ?>><?php echo esc_html($type); ?></option><?php endforeach; ?></select>
         <select name="category"><option value="">All categories</option><?php foreach ($allowed['categories'] as $category) : ?><option value="<?php echo esc_attr($category); ?>" <?php selected($filters['category'], $category); ?>><?php echo esc_html($category); ?></option><?php endforeach; ?></select>
         <select name="status"><option value="">All status</option><?php foreach ($allowed['statuses'] as $status) : ?><option value="<?php echo esc_attr($status); ?>" <?php selected($filters['status'], $status); ?>><?php echo esc_html($status); ?></option><?php endforeach; ?></select>
@@ -60,7 +59,7 @@ $baseUrl = admin_url('admin.php?page=dbg-platform-assets');
 
     <div class="dbg-platform-panel"><h2>Create asset</h2><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="dbg_create_asset"><?php wp_nonce_field('dbg_create_asset'); ?>
-        <p><select name="organisation_id" required><option value="">Select organisation</option><?php foreach ($organisations as $org) : ?><option value="<?php echo esc_attr($org['id']); ?>"><?php echo esc_html($org['name']); ?></option><?php endforeach; ?></select> <input type="text" name="name" placeholder="Asset name" required> <input type="number" name="project_id" placeholder="Project ID optional"></p>
+        <p><input type="number" name="organisation_id" placeholder="Organisation ID (ATLAS ERP)" required> <input type="text" name="name" placeholder="Asset name" required> <input type="number" name="project_id" placeholder="Project ID optional"></p>
         <p><select name="type"><?php foreach ($allowed['types'] as $type) : ?><option value="<?php echo esc_attr($type); ?>"><?php echo esc_html($type); ?></option><?php endforeach; ?></select> <select name="category"><?php foreach ($allowed['categories'] as $category) : ?><option value="<?php echo esc_attr($category); ?>"><?php echo esc_html($category); ?></option><?php endforeach; ?></select> <select name="approval_status"><?php foreach ($allowed['approval_statuses'] as $approval) : ?><option value="<?php echo esc_attr($approval); ?>"><?php echo esc_html($approval); ?></option><?php endforeach; ?></select></p>
         <p><textarea name="description" rows="3" class="large-text" placeholder="Description"></textarea></p>
         <p><button class="button button-primary">Create asset</button></p>
