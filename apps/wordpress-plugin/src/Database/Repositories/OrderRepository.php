@@ -12,11 +12,32 @@ class OrderRepository
         return $row ?: null;
     }
 
+    public function findByNumber(string $orderNumber): ?array
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_orders';
+        $row = $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . $table . ' WHERE order_number = %s', sanitize_text_field($orderNumber)), ARRAY_A);
+        return $row ?: null;
+    }
+
     public function all(array $filters = [], int $limit = 100): array
     {
         global $wpdb;
         $table = $wpdb->prefix . 'dbg_orders';
-        return $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d', max(1, min(500, $limit))), ARRAY_A) ?: [];
+        $limit = max(1, min(500, absint($limit)));
+        return $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d', $limit), ARRAY_A) ?: [];
+    }
+
+    public function paginated(array $filters = [], int $page = 1, int $perPage = 25): array
+    {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dbg_orders';
+        $page = max(1, absint($page));
+        $perPage = max(1, min(100, absint($perPage)));
+        $offset = ($page - 1) * $perPage;
+        $total = (int) $wpdb->get_var('SELECT COUNT(*) FROM ' . $table);
+        $items = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . $table . ' ORDER BY id DESC LIMIT %d OFFSET %d', $perPage, $offset), ARRAY_A) ?: [];
+        return ['items' => $items, 'pagination' => ['page' => $page, 'per_page' => $perPage, 'total' => $total, 'total_pages' => max(1, (int) ceil($total / $perPage))], 'filters' => $filters];
     }
 
     public function create(array $data): int
@@ -36,11 +57,11 @@ class OrderRepository
             'production_status' => sanitize_key($data['production_status'] ?? 'not_started'),
             'fulfillment_status' => sanitize_key($data['fulfillment_status'] ?? 'not_fulfilled'),
             'currency' => strtoupper(sanitize_key($data['currency'] ?? 'EUR')),
-            'subtotal_ht' => (float) ($data['subtotal_ht'] ?? 0),
-            'discount_total' => (float) ($data['discount_total'] ?? 0),
-            'tax_total' => (float) ($data['tax_total'] ?? 0),
-            'total_ht' => (float) ($data['total_ht'] ?? 0),
-            'total_ttc' => (float) ($data['total_ttc'] ?? 0),
+            'subtotal_ht' => max(0, (float) ($data['subtotal_ht'] ?? 0)),
+            'discount_total' => max(0, (float) ($data['discount_total'] ?? 0)),
+            'tax_total' => max(0, (float) ($data['tax_total'] ?? 0)),
+            'total_ht' => max(0, (float) ($data['total_ht'] ?? 0)),
+            'total_ttc' => max(0, (float) ($data['total_ttc'] ?? 0)),
             'due_date' => sanitize_text_field($data['due_date'] ?? '') ?: null,
             'notes' => sanitize_textarea_field($data['notes'] ?? ''),
             'created_by' => get_current_user_id() ?: null,
@@ -62,20 +83,13 @@ class OrderRepository
             if (array_key_exists($field, $data)) { $payload[$field] = $field === 'currency' ? strtoupper(sanitize_key($data[$field])) : sanitize_key($data[$field]); }
         }
         foreach (['subtotal_ht', 'discount_total', 'tax_total', 'total_ht', 'total_ttc'] as $field) {
-            if (array_key_exists($field, $data)) { $payload[$field] = (float) $data[$field]; }
+            if (array_key_exists($field, $data)) { $payload[$field] = max(0, (float) $data[$field]); }
         }
         return false !== $wpdb->update($wpdb->prefix . 'dbg_orders', $payload, ['id' => $id]);
     }
 
-    public function archive(int $id): bool
-    {
-        return $this->update($id, ['status' => 'archived']);
-    }
-
-    public function restore(int $id): bool
-    {
-        return $this->update($id, ['status' => 'draft']);
-    }
+    public function archive(int $id): bool { return $this->update($id, ['status' => 'archived']); }
+    public function restore(int $id): bool { return $this->update($id, ['status' => 'draft']); }
 
     public function nextOrderNumber(): string
     {
