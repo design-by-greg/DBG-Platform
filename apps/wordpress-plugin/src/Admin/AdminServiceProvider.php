@@ -2,6 +2,13 @@
 
 namespace DBGPlatform\Admin;
 
+/**
+ * Note: Organisation, Organisation Contact/User, Project, Quote, Order,
+ * Invoice and Payment admin screens were removed from this plugin (2026-07-02).
+ * That business domain now lives entirely in the ATLAS ERP Base44 app, per
+ * books/architecture/07-wordpress-base44-roles.md ("WordPress sells. Base44 operates.").
+ * WordPress keeps only Assets/Media management and plugin-level settings here.
+ */
 class AdminServiceProvider
 {
     public function register(): void
@@ -9,7 +16,6 @@ class AdminServiceProvider
         add_action('admin_menu', [$this, 'registerMenu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
         (new AssetAdminHandler())->register();
-        (new ProductionAdminHandler())->register();
         (new MediaAjaxUploadHandler())->register();
         (new MediaMultipleUploadHandler())->register();
         (new MediaRenameHandler())->register();
@@ -28,7 +34,6 @@ class AdminServiceProvider
         add_menu_page('DBG Platform', 'DBG Platform', 'manage_options', 'dbg-platform', [$this, 'renderDashboard'], 'dashicons-admin-generic');
         add_submenu_page('dbg-platform', 'Dashboard', 'Dashboard', 'manage_options', 'dbg-platform', [$this, 'renderDashboard']);
         add_submenu_page('dbg-platform', 'Assets', 'Assets', 'manage_options', 'dbg-platform-assets', [$this, 'renderAssets']);
-        add_submenu_page('dbg-platform', 'Production', 'Production', 'manage_options', 'dbg-platform-production', [$this, 'renderProduction']);
         add_submenu_page('dbg-platform', 'Media Health', 'Media Health', 'manage_options', 'dbg-platform-media-health', [$this, 'renderMediaHealth']);
         add_submenu_page('dbg-platform', 'Media Maintenance', 'Media Maintenance', 'manage_options', 'dbg-platform-media-maintenance', [$this, 'renderMediaMaintenance']);
         add_submenu_page('dbg-platform', 'Media', 'Media', 'manage_options', 'dbg-platform-media', [$this, 'renderMedia']);
@@ -53,7 +58,6 @@ class AdminServiceProvider
 
     public function renderDashboard(): void { $this->view('dashboard'); }
     public function renderAssets(): void { $this->view('assets'); }
-    public function renderProduction(): void { $this->view('production'); }
     public function renderMediaHealth(): void { $this->view('media-health'); }
     public function renderMediaMaintenance(): void { $this->view('media-maintenance'); }
     public function renderMedia(): void { $this->view('media'); }
