@@ -13,15 +13,9 @@ use DBGPlatform\API\Routes\FileRoutes;
 use DBGPlatform\API\Routes\MediaFolderRoutes;
 use DBGPlatform\API\Routes\MediaHealthRoutes;
 use DBGPlatform\API\Routes\MediaTagRoutes;
+use DBGPlatform\API\Routes\ProductionRoutes;
 use DBGPlatform\API\Routes\SettingsRoutes;
 
-/**
- * Note: Organisation, Project, Quote, Order, Invoice and Payment REST routes
- * were removed from this plugin (2026-07-02). That business domain now lives
- * entirely in the ATLAS ERP Base44 app, per ADR / books/architecture/07-wordpress-base44-roles.md
- * ("WordPress sells. Base44 operates."). WordPress keeps only public-facing,
- * asset/media and commerce-bridge concerns here.
- */
 class RestServiceProvider
 {
     public function register(): void
@@ -32,6 +26,7 @@ class RestServiceProvider
     public function registerRoutes(): void
     {
         (new AssetRoutes())->register();
+        (new ProductionRoutes())->register();
         (new CommerceRoutes())->register();
         (new AuditRoutes())->register();
         (new SettingsRoutes())->register();
