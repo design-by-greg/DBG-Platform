@@ -2,7 +2,7 @@
 
 Status: Accepted
 
-Date: 2026-07-03
+Date: 2026-07-03 (updated same day — see Addendum)
 
 Modules impacted: wordpress-plugin (Production), Base44 ATLAS ERP app.
 
@@ -31,3 +31,13 @@ Caught early this time: the WordPress-side files were not yet wired into any ser
 - Production tracking (a core internal-operations concern per `07-wordpress-base44-roles.md`) is now correctly scoped to Base44 from the start, instead of being cleaned up later at higher cost.
 - No WordPress admin UI, REST routes, or DB tables ever shipped for this domain — nothing public-facing needs to change.
 - Follow-up: if a WordPress-facing view of production status is ever needed (e.g. showing "in production" on a customer-facing order), it should go through the same cross-system reference/read bridge pattern established in ADR-007 (`ReferenceValidator` / `RemoteClient`), not local tables.
+
+## Addendum (same day, ~1h later)
+
+A follow-up commit (`daf5039`, author `design-by-greg <contact@designbygreg.fr>`, "Add production service validation") re-introduced `apps/wordpress-plugin/src/Production/ProductionService.php` — a 179-line service class with real business logic (create/update/archive/restore, status-transition rules, cross-entity validation against Organisation/Project/Order) directly in the plugin.
+
+This file was **already broken on arrival**: it imports `OrganisationRepository`, `ProjectRepository`, `OrderRepository`, and the four `Production*Repository` classes removed by this same ADR — none of which exist in the codebase anymore. It could not have run without a fatal error.
+
+Removed again, no functional loss (nothing referenced it, no service provider registered it).
+
+**Open question for Gregory:** this is the second time Production-domain business logic has been independently added to the WordPress plugin after being migrated out. If another process, script, or collaborator is developing directly against the old `docs/specifications/SPEC-006-production.md` (which still describes Production as a DBG-Platform/WordPress module), it will keep regenerating this conflict. Worth checking the source of these commits and pointing it at ATLAS ERP (Base44) instead, or updating SPEC-006 to reflect the ADR-008 decision so nothing builds against the stale spec.
