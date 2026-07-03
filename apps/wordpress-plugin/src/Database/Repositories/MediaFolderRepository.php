@@ -12,13 +12,13 @@ class MediaFolderRepository
         $params = [];
 
         if (!empty($filters['organisation_id'])) {
-            $where[] = 'organisation_id = %d';
-            $params[] = absint($filters['organisation_id']);
+            $where[] = 'organisation_id = %s';
+            $params[] = sanitize_text_field((string) $filters['organisation_id']);
         }
 
         if (!empty($filters['project_id'])) {
-            $where[] = 'project_id = %d';
-            $params[] = absint($filters['project_id']);
+            $where[] = 'project_id = %s';
+            $params[] = sanitize_text_field((string) $filters['project_id']);
         }
 
         if (!empty($filters['status'])) {
@@ -45,8 +45,8 @@ class MediaFolderRepository
         $now = current_time('mysql');
 
         $wpdb->insert($table, [
-            'organisation_id' => absint($data['organisation_id'] ?? 0),
-            'project_id' => absint($data['project_id'] ?? 0),
+            'organisation_id' => sanitize_text_field((string) ($data['organisation_id'] ?? '')),
+            'project_id' => trim((string) ($data['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $data['project_id']) : null,
             'parent_id' => absint($data['parent_id'] ?? 0),
             'name' => $name,
             'slug' => sanitize_title($name),

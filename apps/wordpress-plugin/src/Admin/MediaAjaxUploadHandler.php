@@ -24,11 +24,11 @@ class MediaAjaxUploadHandler
 
         check_ajax_referer('dbg_ajax_upload_media', 'nonce');
 
-        $organisationId = absint($_POST['organisation_id'] ?? 0);
-        $projectId = absint($_POST['project_id'] ?? 0);
+        $organisationId = sanitize_text_field((string) ($_POST['organisation_id'] ?? ''));
+        $projectId = sanitize_text_field((string) ($_POST['project_id'] ?? ''));
         $folderId = absint($_POST['folder_id'] ?? 0);
 
-        if ($organisationId <= 0) {
+        if (trim($organisationId) === '') {
             wp_send_json_error(['message' => 'Organisation ID is required.'], 422);
         }
 

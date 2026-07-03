@@ -54,8 +54,8 @@ class AssetRepository
         $now = current_time('mysql');
         $wpdb->insert($wpdb->prefix . 'dbg_assets', [
             'uuid' => $data['uuid'] ?? wp_generate_uuid4(),
-            'organisation_id' => absint($data['organisation_id'] ?? 0),
-            'project_id' => absint($data['project_id'] ?? 0) ?: null,
+            'organisation_id' => sanitize_text_field((string) ($data['organisation_id'] ?? '')),
+            'project_id' => trim((string) ($data['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $data['project_id']) : null,
             'parent_asset_id' => absint($data['parent_asset_id'] ?? 0) ?: null,
             'type' => sanitize_key($data['type'] ?? 'document'),
             'category' => sanitize_key($data['category'] ?? 'general'),
@@ -82,7 +82,10 @@ class AssetRepository
         foreach (['name', 'description'] as $field) {
             if (array_key_exists($field, $data)) { $payload[$field] = $field === 'description' ? sanitize_textarea_field($data[$field]) : sanitize_text_field($data[$field]); }
         }
-        foreach (['organisation_id', 'project_id', 'parent_asset_id', 'current_file_record_id', 'version_number'] as $field) {
+        foreach (['organisation_id', 'project_id'] as $field) {
+            if (array_key_exists($field, $data)) { $payload[$field] = trim((string) $data[$field]) !== '' ? sanitize_text_field((string) $data[$field]) : null; }
+        }
+        foreach (['parent_asset_id', 'current_file_record_id', 'version_number'] as $field) {
             if (array_key_exists($field, $data)) { $payload[$field] = absint($data[$field]) ?: null; }
         }
         foreach (['type', 'category', 'status', 'approval_status'] as $field) {
@@ -126,7 +129,10 @@ class AssetRepository
         global $wpdb;
         $where = [];
         $params = [];
-        foreach (['organisation_id', 'project_id', 'parent_asset_id', 'current_file_record_id'] as $field) {
+        foreach (['organisation_id', 'project_id'] as $field) {
+            if (!empty($filters[$field])) { $where[] = $field . ' = %s'; $params[] = sanitize_text_field((string) $filters[$field]); }
+        }
+        foreach (['parent_asset_id', 'current_file_record_id'] as $field) {
             if (!empty($filters[$field])) { $where[] = $field . ' = %d'; $params[] = absint($filters[$field]); }
         }
         foreach (['type', 'category', 'status', 'approval_status'] as $field) {

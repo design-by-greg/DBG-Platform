@@ -71,11 +71,11 @@ class FormHandler
     {
         $this->guard('dbg_upload_media');
 
-        $organisationId = absint($_POST['organisation_id'] ?? 0);
-        $projectId = absint($_POST['project_id'] ?? 0);
+        $organisationId = sanitize_text_field((string) ($_POST['organisation_id'] ?? ''));
+        $projectId = trim((string) ($_POST['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $_POST['project_id']) : null;
         $folderId = absint($_POST['folder_id'] ?? 0);
 
-        if ($organisationId <= 0) {
+        if (trim($organisationId) === '') {
             $this->redirect('dbg-platform-media', 'error', ['Organisation ID is required.']);
         }
 
@@ -125,8 +125,8 @@ class FormHandler
         }
 
         $result = (new FileUploadService())->upload($_FILES['file'], [
-            'organisation_id' => absint($existing['organisation_id']),
-            'project_id' => absint($existing['project_id']),
+            'organisation_id' => (string) ($existing['organisation_id'] ?? ''),
+            'project_id' => $existing['project_id'] ?? null,
         ]);
 
         if (empty($result['success'])) {
@@ -151,8 +151,8 @@ class FormHandler
         }
 
         $folderId = (new MediaFolderRepository())->create([
-            'organisation_id' => absint($_POST['organisation_id'] ?? 0),
-            'project_id' => absint($_POST['project_id'] ?? 0),
+            'organisation_id' => sanitize_text_field((string) ($_POST['organisation_id'] ?? '')),
+            'project_id' => trim((string) ($_POST['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $_POST['project_id']) : null,
             'parent_id' => absint($_POST['parent_id'] ?? 0),
             'name' => $_POST['folder_name'] ?? '',
         ]);

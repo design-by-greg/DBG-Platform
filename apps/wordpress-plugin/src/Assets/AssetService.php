@@ -4,19 +4,22 @@ namespace DBGPlatform\Assets;
 
 use DBGPlatform\Audit\AuditLogger;
 use DBGPlatform\Database\Repositories\AssetRepository;
+use DBGPlatform\Remote\ReferenceValidator;
 
 /**
- * Note: organisation_id and project_id are now foreign references into the
+ * Note: organisation_id and project_id are foreign references into the
  * ATLAS ERP Base44 app, not local WordPress tables (see 2026-07-02 migration,
- * books/architecture/07-wordpress-base44-roles.md). This service only does
- * shape/format validation locally; cross-system existence validation against
- * Base44 is a follow-up task (API bridge), not yet implemented.
+ * books/architecture/07-wordpress-base44-roles.md). They are stored and
+ * handled as strings (Base44 record ids), not WordPress auto-increment ints.
+ * Cross-system existence validation is delegated to ReferenceValidator,
+ * which is a no-op (trust the value) when sync_mode is 'local'.
  */
 class AssetService
 {
     private AssetRepository $assets;
     private AssetEventRepository $events;
     private AuditLogger $audit;
+    private ReferenceValidator $referenceValidator;
 
     private array $types = ['document', 'logo', 'brand_guide', 'source_file', 'proof', 'mockup', 'production_file', 'photo', 'template', 'other'];
     private array $categories = ['general', 'graphic', 'bat', 'production', 'client', 'supplier', 'internal'];
@@ -28,6 +31,7 @@ class AssetService
         $this->assets = new AssetRepository();
         $this->events = new AssetEventRepository();
         $this->audit = new AuditLogger();
+        $this->referenceValidator = new ReferenceValidator();
     }
 
     public function create(array $data): int
@@ -113,11 +117,11 @@ class AssetService
         $merged = array_merge($current, $this->normalise($data, $create));
 
         if ($assetId && empty($current)) { $errors[] = 'Asset not found.'; }
-        if ($create && empty($merged['organisation_id'])) { $errors[] = 'Organisation is required.'; }
+        if ($create && trim((string) ($merged['organisation_id'] ?? '')) === '') { $errors[] = 'Organisation is required.'; }
         if ($create && trim((string) ($merged['name'] ?? '')) === '') { $errors[] = 'Asset name is required.'; }
         if (isset($merged['name']) && strlen((string) $merged['name']) > 255) { $errors[] = 'Asset name must be 255 characters or less.'; }
         if (isset($merged['uuid']) && strlen((string) $merged['uuid']) > 36) { $errors[] = 'UUID must be 36 characters or less.'; }
-        if (empty($merged['organisation_id']) || absint($merged['organisation_id']) <= 0) { $errors[] = 'Organisation is invalid.'; }
+        if (empty(trim((string) ($merged['organisation_id'] ?? '')))) { $errors[] = 'Organisation is invalid.'; }
         if (!$this->isValidParent($merged, $assetId)) { $errors[] = 'Parent asset must belong to the selected organisation and cannot be itself.'; }
         if (!$this->isValidCurrentFile($merged)) { $errors[] = 'Current file must belong to the selected asset, project, or organisation.'; }
         if (isset($merged['version_number']) && absint($merged['version_number']) < 1) { $errors[] = 'Version number must be positive.'; }
@@ -125,6 +129,18 @@ class AssetService
             if (isset($merged[$field]) && !in_array((string) $merged[$field], $allowed, true)) { $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is invalid.'; }
         }
         if (isset($data['metadata']) && !is_array($data['metadata'])) { $errors[] = 'Metadata must be an object.'; }
+
+        if (empty($errors) && !empty($merged['organisation_id'])) {
+            $orgCheck = $this->referenceValidator->check('organisation', (string) $merged['organisation_id']);
+            if ($orgCheck['checked'] && !$orgCheck['valid']) { $errors[] = 'Organisation could not be verified in ATLAS ERP.'; }
+            elseif ($orgCheck['checked'] && $orgCheck['archived']) { $errors[] = 'Organisation is archived in ATLAS ERP.'; }
+        }
+        if (empty($errors) && !empty($merged['project_id'])) {
+            $projCheck = $this->referenceValidator->check('project', (string) $merged['project_id']);
+            if ($projCheck['checked'] && !$projCheck['valid']) { $errors[] = 'Project could not be verified in ATLAS ERP.'; }
+            elseif ($projCheck['checked'] && $projCheck['archived']) { $errors[] = 'Project is archived in ATLAS ERP.'; }
+        }
+
         return $errors;
     }
 
@@ -140,7 +156,10 @@ class AssetService
             if (array_key_exists($field, $data)) { $payload[$field] = sanitize_text_field($data[$field]); }
         }
         if (array_key_exists('description', $data)) { $payload['description'] = sanitize_textarea_field($data['description']); }
-        foreach (['organisation_id', 'project_id', 'parent_asset_id', 'current_file_record_id', 'version_number'] as $field) {
+        foreach (['organisation_id', 'project_id'] as $field) {
+            if (array_key_exists($field, $data)) { $payload[$field] = trim((string) sanitize_text_field($data[$field])) ?: null; }
+        }
+        foreach (['parent_asset_id', 'current_file_record_id', 'version_number'] as $field) {
             if (array_key_exists($field, $data)) { $payload[$field] = absint($data[$field]) ?: null; }
         }
         foreach (['type', 'category', 'status', 'approval_status'] as $field) {
@@ -179,7 +198,7 @@ class AssetService
         if (empty($payload['parent_asset_id'])) { return true; }
         if ($assetId && absint($payload['parent_asset_id']) === $assetId) { return false; }
         $parent = $this->assets->find(absint($payload['parent_asset_id']));
-        return $parent && absint($parent['organisation_id']) === absint($payload['organisation_id']) && ($parent['status'] ?? '') !== 'archived';
+        return $parent && (string) ($parent['organisation_id'] ?? '') === (string) ($payload['organisation_id'] ?? '') && ($parent['status'] ?? '') !== 'archived';
     }
 
     private function isValidCurrentFile(array $payload): bool
@@ -188,8 +207,8 @@ class AssetService
         global $wpdb;
         $file = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}dbg_file_records WHERE id = %d", absint($payload['current_file_record_id'])), ARRAY_A);
         if (!$file || ($file['status'] ?? '') === 'archived') { return false; }
-        if (!empty($file['organisation_id']) && absint($file['organisation_id']) !== absint($payload['organisation_id'])) { return false; }
-        if (!empty($payload['project_id']) && !empty($file['project_id']) && absint($file['project_id']) !== absint($payload['project_id'])) { return false; }
+        if (!empty($file['organisation_id']) && (string) $file['organisation_id'] !== (string) ($payload['organisation_id'] ?? '')) { return false; }
+        if (!empty($payload['project_id']) && !empty($file['project_id']) && (string) $file['project_id'] !== (string) $payload['project_id']) { return false; }
         return true;
     }
 }

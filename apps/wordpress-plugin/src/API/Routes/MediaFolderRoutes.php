@@ -49,8 +49,8 @@ class MediaFolderRoutes
     public function listFolders(WP_REST_Request $request): WP_REST_Response
     {
         $filters = [
-            'organisation_id' => absint($request->get_param('organisation_id')),
-            'project_id' => absint($request->get_param('project_id')),
+            'organisation_id' => sanitize_text_field((string) ($request->get_param('organisation_id') ?? '')),
+            'project_id' => sanitize_text_field((string) ($request->get_param('project_id') ?? '')),
             'status' => sanitize_key($request->get_param('status') ?? 'active'),
         ];
 
@@ -68,7 +68,7 @@ class MediaFolderRoutes
             return ApiResponse::validation(['Folder name is required.']);
         }
 
-        if (absint($payload['organisation_id'] ?? 0) <= 0) {
+        if (trim((string) ($payload['organisation_id'] ?? '')) === '') {
             return ApiResponse::validation(['organisation_id is required.']);
         }
 

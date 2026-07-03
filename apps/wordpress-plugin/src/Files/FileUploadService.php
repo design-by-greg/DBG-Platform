@@ -37,9 +37,9 @@ class FileUploadService
         $baseDir = trailingslashit($uploads['basedir']) . 'dbg-platform';
         $baseUrl = trailingslashit($uploads['baseurl']) . 'dbg-platform';
 
-        $organisationId = absint($context['organisation_id'] ?? 0);
-        $projectId = absint($context['project_id'] ?? 0);
-        $targetDir = $baseDir . '/org-' . $organisationId . '/project-' . $projectId;
+        $organisationId = sanitize_text_field((string) ($context['organisation_id'] ?? ''));
+        $projectId = trim((string) ($context['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $context['project_id']) : null;
+        $targetDir = $baseDir . '/org-' . $organisationId . '/project-' . ($projectId ?? 'none');
 
         if (!wp_mkdir_p($targetDir)) {
             return ['success' => false, 'message' => 'Unable to create upload directory.'];
@@ -58,7 +58,7 @@ class FileUploadService
         clearstatcache(true, $destination);
         $fileHash = file_exists($destination) ? hash_file('sha256', $destination) : null;
 
-        $relativePath = 'dbg-platform/org-' . $organisationId . '/project-' . $projectId . '/' . $filename;
+        $relativePath = 'dbg-platform/org-' . $organisationId . '/project-' . ($projectId ?? 'none') . '/' . $filename;
 
         return [
             'success' => true,
@@ -68,7 +68,7 @@ class FileUploadService
             'size' => file_exists($destination) ? (int) filesize($destination) : (int) $file['size'],
             'file_hash' => $fileHash,
             'path' => $relativePath,
-            'url' => trailingslashit($baseUrl) . 'org-' . $organisationId . '/project-' . $projectId . '/' . $filename,
+            'url' => trailingslashit($baseUrl) . 'org-' . $organisationId . '/project-' . ($projectId ?? 'none') . '/' . $filename,
             'organisation_id' => $organisationId,
             'project_id' => $projectId,
             'compression' => $compression,

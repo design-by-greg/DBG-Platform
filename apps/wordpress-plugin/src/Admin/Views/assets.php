@@ -9,8 +9,8 @@ $allowed = $assetService->allowedValues();
 $currentPage = max(1, absint($_GET['paged'] ?? 1));
 $perPage = max(10, min(100, absint($_GET['per_page'] ?? 25)));
 $filters = [
-    'organisation_id' => absint($_GET['organisation_id'] ?? 0),
-    'project_id' => absint($_GET['project_id'] ?? 0),
+    'organisation_id' => sanitize_text_field($_GET['organisation_id'] ?? ''),
+    'project_id' => sanitize_text_field($_GET['project_id'] ?? ''),
     'parent_asset_id' => absint($_GET['parent_asset_id'] ?? 0),
     'current_file_record_id' => absint($_GET['current_file_record_id'] ?? 0),
     'search' => sanitize_text_field($_GET['search'] ?? ''),
@@ -45,12 +45,12 @@ $baseUrl = admin_url('admin.php?page=dbg-platform-assets');
     <div class="dbg-platform-panel"><h2>Filters</h2><form method="get">
         <input type="hidden" name="page" value="dbg-platform-assets">
         <input type="search" name="search" placeholder="Search asset" value="<?php echo esc_attr($filters['search']); ?>">
-        <input type="number" name="organisation_id" placeholder="Organisation ID (ATLAS ERP)" value="<?php echo esc_attr($filters['organisation_id'] ?: ''); ?>">
+        <input type="text" name="organisation_id" placeholder="Organisation ID (ATLAS ERP)" value="<?php echo esc_attr($filters['organisation_id'] ?: ''); ?>">
         <select name="type"><option value="">All types</option><?php foreach ($allowed['types'] as $type) : ?><option value="<?php echo esc_attr($type); ?>" <?php selected($filters['type'], $type); ?>><?php echo esc_html($type); ?></option><?php endforeach; ?></select>
         <select name="category"><option value="">All categories</option><?php foreach ($allowed['categories'] as $category) : ?><option value="<?php echo esc_attr($category); ?>" <?php selected($filters['category'], $category); ?>><?php echo esc_html($category); ?></option><?php endforeach; ?></select>
         <select name="status"><option value="">All status</option><?php foreach ($allowed['statuses'] as $status) : ?><option value="<?php echo esc_attr($status); ?>" <?php selected($filters['status'], $status); ?>><?php echo esc_html($status); ?></option><?php endforeach; ?></select>
         <select name="approval_status"><option value="">All approvals</option><?php foreach ($allowed['approval_statuses'] as $approval) : ?><option value="<?php echo esc_attr($approval); ?>" <?php selected($filters['approval_status'], $approval); ?>><?php echo esc_html($approval); ?></option><?php endforeach; ?></select>
-        <input type="number" name="project_id" placeholder="Project ID" value="<?php echo esc_attr($filters['project_id'] ?: ''); ?>">
+        <input type="text" name="project_id" placeholder="Project ID" value="<?php echo esc_attr($filters['project_id'] ?: ''); ?>">
         <select name="sort_by"><option value="id" <?php selected($filters['sort_by'], 'id'); ?>>ID</option><option value="name" <?php selected($filters['sort_by'], 'name'); ?>>Name</option><option value="type" <?php selected($filters['sort_by'], 'type'); ?>>Type</option><option value="category" <?php selected($filters['sort_by'], 'category'); ?>>Category</option><option value="approval_status" <?php selected($filters['sort_by'], 'approval_status'); ?>>Approval</option><option value="updated_at" <?php selected($filters['sort_by'], 'updated_at'); ?>>Updated</option></select>
         <select name="sort_order"><option value="ASC" <?php selected($filters['sort_order'], 'ASC'); ?>>ASC</option><option value="DESC" <?php selected($filters['sort_order'], 'DESC'); ?>>DESC</option></select>
         <select name="per_page"><?php foreach ([10,25,50,100] as $option) : ?><option value="<?php echo esc_attr($option); ?>" <?php selected($perPage, $option); ?>><?php echo esc_html($option); ?> / page</option><?php endforeach; ?></select>
@@ -59,7 +59,7 @@ $baseUrl = admin_url('admin.php?page=dbg-platform-assets');
 
     <div class="dbg-platform-panel"><h2>Create asset</h2><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="dbg_create_asset"><?php wp_nonce_field('dbg_create_asset'); ?>
-        <p><input type="number" name="organisation_id" placeholder="Organisation ID (ATLAS ERP)" required> <input type="text" name="name" placeholder="Asset name" required> <input type="number" name="project_id" placeholder="Project ID optional"></p>
+        <p><input type="text" name="organisation_id" placeholder="Organisation ID (ATLAS ERP)" required> <input type="text" name="name" placeholder="Asset name" required> <input type="text" name="project_id" placeholder="Project ID optional"></p>
         <p><select name="type"><?php foreach ($allowed['types'] as $type) : ?><option value="<?php echo esc_attr($type); ?>"><?php echo esc_html($type); ?></option><?php endforeach; ?></select> <select name="category"><?php foreach ($allowed['categories'] as $category) : ?><option value="<?php echo esc_attr($category); ?>"><?php echo esc_html($category); ?></option><?php endforeach; ?></select> <select name="approval_status"><?php foreach ($allowed['approval_statuses'] as $approval) : ?><option value="<?php echo esc_attr($approval); ?>"><?php echo esc_html($approval); ?></option><?php endforeach; ?></select></p>
         <p><textarea name="description" rows="3" class="large-text" placeholder="Description"></textarea></p>
         <p><button class="button button-primary">Create asset</button></p>

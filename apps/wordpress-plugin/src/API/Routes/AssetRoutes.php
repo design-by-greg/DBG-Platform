@@ -46,8 +46,8 @@ class AssetRoutes
     public function listAssets(WP_REST_Request $request): WP_REST_Response
     {
         $filters = [
-            'organisation_id' => absint($request->get_param('organisation_id') ?? 0),
-            'project_id' => absint($request->get_param('project_id') ?? 0),
+            'organisation_id' => sanitize_text_field((string) ($request->get_param('organisation_id') ?? '')),
+            'project_id' => sanitize_text_field((string) ($request->get_param('project_id') ?? '')),
             'parent_asset_id' => absint($request->get_param('parent_asset_id') ?? 0),
             'current_file_record_id' => absint($request->get_param('current_file_record_id') ?? 0),
             'search' => sanitize_text_field($request->get_param('search') ?? ''),
@@ -109,14 +109,14 @@ class AssetRoutes
     private function validatePayload(array $payload, bool $create): ?WP_REST_Response
     {
         $validator = new ApiValidator();
-        if ($create) { $validator->positiveInt('organisation_id', 'Organisation ID', $payload)->required('name', 'Asset name', $payload); }
+        if ($create) { $validator->required('organisation_id', 'Organisation ID', $payload)->required('name', 'Asset name', $payload); }
         $allowed = $this->service->allowedValues();
         $validator->maxLength('uuid', 'UUID', 36, $payload)->maxLength('name', 'Asset name', 255, $payload);
         if (isset($payload['type'])) { $validator->allowedValue('type', 'Type', $allowed['types'], $payload); }
         if (isset($payload['category'])) { $validator->allowedValue('category', 'Category', $allowed['categories'], $payload); }
         if (isset($payload['status'])) { $validator->allowedValue('status', 'Status', $allowed['statuses'], $payload); }
         if (isset($payload['approval_status'])) { $validator->allowedValue('approval_status', 'Approval status', $allowed['approval_statuses'], $payload); }
-        foreach (['project_id' => 'Project ID', 'parent_asset_id' => 'Parent asset ID', 'current_file_record_id' => 'Current file record ID', 'version_number' => 'Version number'] as $field => $label) {
+        foreach (['parent_asset_id' => 'Parent asset ID', 'current_file_record_id' => 'Current file record ID', 'version_number' => 'Version number'] as $field => $label) {
             if (isset($payload[$field]) && $payload[$field] !== '' && $payload[$field] !== null) { $validator->positiveInt($field, $label, $payload); }
         }
         if (isset($payload['metadata']) && !is_array($payload['metadata'])) { return ApiResponse::validation(['Metadata must be an object.']); }

@@ -50,8 +50,8 @@ class FileRoutes
         if (is_string($tagIds)) { $tagIds = array_filter(array_map('trim', explode(',', $tagIds))); }
         $favorite = $request->get_param('is_favorite');
         $filters = [
-            'organisation_id' => absint($request->get_param('organisation_id')),
-            'project_id' => absint($request->get_param('project_id')),
+            'organisation_id' => sanitize_text_field((string) ($request->get_param('organisation_id') ?? '')),
+            'project_id' => sanitize_text_field((string) ($request->get_param('project_id') ?? '')),
             'folder_id' => absint($request->get_param('folder_id')),
             'asset_id' => absint($request->get_param('asset_id')),
             'tag_id' => absint($request->get_param('tag_id')),
@@ -124,9 +124,9 @@ class FileRoutes
     {
         $files = $this->normaliseFiles($request->get_file_params());
         if (empty($files)) { return ApiResponse::validation(['file is required.']); }
-        $context = ['organisation_id' => absint($request->get_param('organisation_id')), 'project_id' => absint($request->get_param('project_id'))];
+        $context = ['organisation_id' => sanitize_text_field((string) ($request->get_param('organisation_id') ?? '')), 'project_id' => sanitize_text_field((string) ($request->get_param('project_id') ?? ''))];
         $folderId = absint($request->get_param('folder_id'));
-        if ($context['organisation_id'] <= 0) { return ApiResponse::validation(['organisation_id is required.']); }
+        if (trim($context['organisation_id']) === '') { return ApiResponse::validation(['organisation_id is required.']); }
         $uploaded = []; $errors = [];
         foreach ($files as $file) {
             $result = $this->uploads->upload($file, $context);

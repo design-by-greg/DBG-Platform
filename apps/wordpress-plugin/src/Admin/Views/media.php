@@ -9,8 +9,8 @@ $metadataRepository = new \DBGPlatform\Database\Repositories\FileMetadataReposit
 $previewService = new \DBGPlatform\Files\FilePreviewService();
 
 $filters = [
-    'organisation_id' => absint($_GET['organisation_id'] ?? 0),
-    'project_id' => absint($_GET['project_id'] ?? 0),
+    'organisation_id' => sanitize_text_field($_GET['organisation_id'] ?? ''),
+    'project_id' => sanitize_text_field($_GET['project_id'] ?? ''),
     'folder_id' => absint($_GET['folder_id'] ?? 0),
     'asset_id' => absint($_GET['asset_id'] ?? 0),
     'tag_id' => absint($_GET['tag_id'] ?? 0),
@@ -60,8 +60,8 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
             <input type="hidden" name="action" value="dbg_create_media_folder">
             <?php wp_nonce_field('dbg_create_media_folder'); ?>
             <input type="text" name="folder_name" placeholder="Folder name" required>
-            <input type="number" name="organisation_id" placeholder="Organisation ID" required>
-            <input type="number" name="project_id" placeholder="Project ID optional">
+            <input type="text" name="organisation_id" placeholder="Organisation ID" required>
+            <input type="text" name="project_id" placeholder="Project ID optional">
             <select name="parent_id"><option value="0">No parent</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>"><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select>
             <button class="button button-primary">Create folder</button>
         </form>
@@ -72,8 +72,8 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
         <form method="post" enctype="multipart/form-data" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" data-dbg-upload-form>
             <input type="hidden" name="action" value="dbg_upload_media">
             <?php wp_nonce_field('dbg_upload_media'); ?>
-            <p><input type="number" name="organisation_id" placeholder="Organisation ID" class="regular-text" required></p>
-            <p><input type="number" name="project_id" placeholder="Project ID optional" class="regular-text"></p>
+            <p><input type="text" name="organisation_id" placeholder="Organisation ID" class="regular-text" required></p>
+            <p><input type="text" name="project_id" placeholder="Project ID optional" class="regular-text"></p>
             <p><select name="folder_id" class="regular-text"><option value="0">No folder</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>"><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select></p>
             <div class="dbg-dropzone" data-dbg-dropzone><strong data-dbg-dropzone-label>Drop files here or click to select</strong><span>PDF, PNG, JPG, SVG, ZIP, EPS, AI — max 50 MB per file</span><input type="file" name="files[]" multiple required></div>
             <div class="dbg-upload-progress" data-dbg-upload-progress hidden><div class="dbg-upload-progress-track"><span class="dbg-upload-progress-bar" data-dbg-upload-progress-bar role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></span></div><span class="dbg-upload-progress-text" data-dbg-upload-progress-text>Waiting...</span></div>
@@ -86,8 +86,8 @@ $sortLink = function (string $key) use ($basePageUrl, $sort) {
         <form method="get">
             <input type="hidden" name="page" value="dbg-platform-media">
             <input type="search" name="search" placeholder="Search filename" value="<?php echo esc_attr($filters['search']); ?>">
-            <input type="number" name="organisation_id" placeholder="Organisation ID" value="<?php echo esc_attr($filters['organisation_id'] ?: ''); ?>">
-            <input type="number" name="project_id" placeholder="Project ID" value="<?php echo esc_attr($filters['project_id'] ?: ''); ?>">
+            <input type="text" name="organisation_id" placeholder="Organisation ID" value="<?php echo esc_attr($filters['organisation_id'] ?: ''); ?>">
+            <input type="text" name="project_id" placeholder="Project ID" value="<?php echo esc_attr($filters['project_id'] ?: ''); ?>">
             <select name="folder_id"><option value="0">All folders</option><?php foreach ($folders as $folder) : ?><option value="<?php echo esc_attr($folder['id']); ?>" <?php selected($filters['folder_id'], (int) $folder['id']); ?>><?php echo esc_html($folder['name']); ?></option><?php endforeach; ?></select>
             <select name="tag_id"><option value="0">All tags</option><?php foreach ($tags as $tag) : ?><option value="<?php echo esc_attr($tag['id']); ?>" <?php selected($filters['tag_id'], (int) $tag['id']); ?>><?php echo esc_html($tag['name']); ?></option><?php endforeach; ?></select>
             <select name="is_favorite"><option value="" <?php selected($filters['is_favorite'], ''); ?>>All favorites</option><option value="1" <?php selected($filters['is_favorite'], '1'); ?>>Favorites only</option><option value="0" <?php selected($filters['is_favorite'], '0'); ?>>Not favorite</option></select>

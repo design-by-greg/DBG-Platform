@@ -28,11 +28,11 @@ class MediaMultipleUploadHandler
 
         check_admin_referer('dbg_upload_media');
 
-        $organisationId = absint($_POST['organisation_id'] ?? 0);
-        $projectId = absint($_POST['project_id'] ?? 0);
+        $organisationId = sanitize_text_field((string) ($_POST['organisation_id'] ?? ''));
+        $projectId = sanitize_text_field((string) ($_POST['project_id'] ?? ''));
         $folderId = absint($_POST['folder_id'] ?? 0);
 
-        if ($organisationId <= 0) {
+        if (trim($organisationId) === '') {
             $this->redirect('error', ['Organisation ID is required.']);
         }
 

@@ -33,7 +33,7 @@ class ProductionJobRepository
         $where = [];
         $params = [];
         foreach (['organisation_id', 'project_id', 'order_id'] as $field) {
-            if (!empty($filters[$field])) { $where[] = $field . ' = %d'; $params[] = absint($filters[$field]); }
+            if (!empty($filters[$field])) { $where[] = $field . ' = %s'; $params[] = sanitize_text_field((string) $filters[$field]); }
         }
         foreach (['status', 'priority'] as $field) {
             if (!empty($filters[$field])) { $where[] = $field . ' = %s'; $params[] = sanitize_key($filters[$field]); }
@@ -52,9 +52,9 @@ class ProductionJobRepository
         $now = current_time('mysql');
         $wpdb->insert($wpdb->prefix . 'dbg_production_jobs', [
             'uuid' => wp_generate_uuid4(),
-            'organisation_id' => absint($data['organisation_id'] ?? 0),
-            'project_id' => absint($data['project_id'] ?? 0) ?: null,
-            'order_id' => absint($data['order_id'] ?? 0) ?: null,
+            'organisation_id' => sanitize_text_field((string) ($data['organisation_id'] ?? '')),
+            'project_id' => trim((string) ($data['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $data['project_id']) : null,
+            'order_id' => trim((string) ($data['order_id'] ?? '')) !== '' ? sanitize_text_field((string) $data['order_id']) : null,
             'job_number' => sanitize_text_field($data['job_number'] ?? $this->nextJobNumber()),
             'title' => sanitize_text_field($data['title'] ?? ''),
             'description' => sanitize_textarea_field($data['description'] ?? ''),
@@ -79,7 +79,8 @@ class ProductionJobRepository
         $payload = ['updated_at' => current_time('mysql'), 'updated_by' => get_current_user_id() ?: null];
         foreach (['job_number', 'title'] as $field) { if (array_key_exists($field, $data)) { $payload[$field] = sanitize_text_field($data[$field]) ?: null; } }
         if (array_key_exists('description', $data)) { $payload['description'] = sanitize_textarea_field($data['description']); }
-        foreach (['organisation_id', 'project_id', 'order_id', 'production_site_id'] as $field) { if (array_key_exists($field, $data)) { $payload[$field] = absint($data[$field]) ?: null; } }
+        foreach (['organisation_id', 'project_id', 'order_id'] as $field) { if (array_key_exists($field, $data)) { $payload[$field] = trim((string) $data[$field]) !== '' ? sanitize_text_field((string) $data[$field]) : null; } }
+        if (array_key_exists('production_site_id', $data)) { $payload['production_site_id'] = absint($data['production_site_id']) ?: null; }
         foreach (['status', 'priority'] as $field) { if (array_key_exists($field, $data)) { $payload[$field] = sanitize_key($data[$field]); } }
         foreach (['planned_start_at', 'planned_end_at', 'started_at', 'completed_at', 'archived_at'] as $field) { if (array_key_exists($field, $data)) { $payload[$field] = $data[$field]; } }
         return false !== $wpdb->update($wpdb->prefix . 'dbg_production_jobs', $payload, ['id' => $id]);

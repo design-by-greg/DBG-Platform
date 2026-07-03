@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DBG Platform
  * Description: WordPress integration layer for DBG Platform.
- * Version: 0.2.0
+ * Version: 0.2.1
  * Author: Design by Greg
  * Text Domain: dbg-platform
  */

@@ -91,8 +91,8 @@ class AssetAdminHandler
     private function payload(): array
     {
         return [
-            'organisation_id' => absint($_POST['organisation_id'] ?? 0),
-            'project_id' => absint($_POST['project_id'] ?? 0),
+            'organisation_id' => sanitize_text_field((string) ($_POST['organisation_id'] ?? '')),
+            'project_id' => sanitize_text_field((string) ($_POST['project_id'] ?? '')),
             'parent_asset_id' => absint($_POST['parent_asset_id'] ?? 0),
             'current_file_record_id' => absint($_POST['current_file_record_id'] ?? 0),
             'name' => sanitize_text_field($_POST['name'] ?? ''),
@@ -109,14 +109,14 @@ class AssetAdminHandler
     {
         $errors = [];
         $allowed = (new AssetService())->allowedValues();
-        if ($create && absint($_POST['organisation_id'] ?? 0) <= 0) { $errors[] = 'Organisation is required.'; }
+        if ($create && trim((string) ($_POST['organisation_id'] ?? '')) === '') { $errors[] = 'Organisation is required.'; }
         if ($create && trim((string) ($_POST['name'] ?? '')) === '') { $errors[] = 'Asset name is required.'; }
         if (strlen((string) ($_POST['name'] ?? '')) > 255) { $errors[] = 'Asset name is too long.'; }
         foreach (['type' => 'types', 'category' => 'categories', 'status' => 'statuses', 'approval_status' => 'approval_statuses'] as $field => $bucket) {
             $value = sanitize_key($_POST[$field] ?? '');
             if ($value !== '' && !in_array($value, $allowed[$bucket], true)) { $errors[] = ucfirst(str_replace('_', ' ', $field)) . ' is invalid.'; }
         }
-        foreach (['project_id', 'parent_asset_id', 'current_file_record_id'] as $field) {
+        foreach (['parent_asset_id', 'current_file_record_id'] as $field) {
             if (isset($_POST[$field]) && $_POST[$field] !== '' && absint($_POST[$field]) <= 0) { $errors[] = str_replace('_', ' ', $field) . ' must be a valid positive number.'; }
         }
         return $errors;

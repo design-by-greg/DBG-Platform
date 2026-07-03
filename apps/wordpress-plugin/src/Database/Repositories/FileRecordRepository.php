@@ -54,8 +54,8 @@ class FileRecordRepository
     {
         global $wpdb;
         $where = []; $params = []; $metadataTable = $wpdb->prefix . 'dbg_file_metadata';
-        if (!empty($filters['organisation_id'])) { $where[] = 'organisation_id = %d'; $params[] = absint($filters['organisation_id']); }
-        if (!empty($filters['project_id'])) { $where[] = 'project_id = %d'; $params[] = absint($filters['project_id']); }
+        if (!empty($filters['organisation_id'])) { $where[] = 'organisation_id = %s'; $params[] = sanitize_text_field((string) $filters['organisation_id']); }
+        if (!empty($filters['project_id'])) { $where[] = 'project_id = %s'; $params[] = sanitize_text_field((string) $filters['project_id']); }
         if (!empty($filters['folder_id'])) { $where[] = 'folder_id = %d'; $params[] = absint($filters['folder_id']); }
         if (!empty($filters['asset_id'])) { $where[] = 'asset_id = %d'; $params[] = absint($filters['asset_id']); }
         if (!empty($filters['only_orphans'])) { $where[] = "(asset_id IS NULL OR asset_id = 0 OR asset_id NOT IN (SELECT id FROM {$wpdb->prefix}dbg_assets))"; }
@@ -80,7 +80,7 @@ class FileRecordRepository
     public function create(array $data): int
     {
         global $wpdb; $now = current_time('mysql');
-        $wpdb->insert($wpdb->prefix . 'dbg_file_records', ['asset_id' => absint($data['asset_id'] ?? 0), 'organisation_id' => absint($data['organisation_id'] ?? 0), 'project_id' => absint($data['project_id'] ?? 0), 'folder_id' => absint($data['folder_id'] ?? 0), 'original_name' => sanitize_file_name($data['original_name'] ?? ''), 'filename' => sanitize_file_name($data['filename'] ?? ''), 'mime_type' => sanitize_text_field($data['mime_type'] ?? ''), 'size' => absint($data['size'] ?? 0), 'file_hash' => sanitize_text_field($data['file_hash'] ?? ''), 'path' => sanitize_text_field($data['path'] ?? ''), 'url' => esc_url_raw($data['url'] ?? ''), 'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''), 'is_favorite' => absint($data['is_favorite'] ?? 0), 'status' => 'active', 'created_at' => $now, 'updated_at' => $now]);
+        $wpdb->insert($wpdb->prefix . 'dbg_file_records', ['asset_id' => absint($data['asset_id'] ?? 0), 'organisation_id' => sanitize_text_field((string) ($data['organisation_id'] ?? '')), 'project_id' => trim((string) ($data['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $data['project_id']) : null, 'folder_id' => absint($data['folder_id'] ?? 0), 'original_name' => sanitize_file_name($data['original_name'] ?? ''), 'filename' => sanitize_file_name($data['filename'] ?? ''), 'mime_type' => sanitize_text_field($data['mime_type'] ?? ''), 'size' => absint($data['size'] ?? 0), 'file_hash' => sanitize_text_field($data['file_hash'] ?? ''), 'path' => sanitize_text_field($data['path'] ?? ''), 'url' => esc_url_raw($data['url'] ?? ''), 'thumbnail_path' => sanitize_text_field($data['thumbnail_path'] ?? ''), 'thumbnail_url' => esc_url_raw($data['thumbnail_url'] ?? ''), 'is_favorite' => absint($data['is_favorite'] ?? 0), 'status' => 'active', 'created_at' => $now, 'updated_at' => $now]);
         return (int) $wpdb->insert_id;
     }
 

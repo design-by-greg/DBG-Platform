@@ -36,6 +36,14 @@ It must not become the full business domain. It is an interface and integration 
 
 ## Changelog
 
+### 0.2.1 — 2026-07-03
+
+Wired the cross-system reference validation bridge to ATLAS ERP (`validateReference` Base44 function) and fixed a data-typing bug found in the process:
+
+- Added `Remote\ReferenceValidator`, which calls the bridge and applies the `sync_mode` policy: `local` = no-op (trust), `hybrid` = trust on bridge failure/unreachable (fail open), `remote` = block on bridge failure (fail closed).
+- **Bug fix**: `organisation_id` / `project_id` were still being treated as WordPress-local integers (`absint()`, numeric `<input>` fields, `%d` SQL params) across Assets, Media folders, File records, Production jobs, and their admin/REST layers — even though these are now Base44 record ids (strings). The DB schema (`Migrator.php`) was already correctly `VARCHAR(64)`, but the PHP layer wasn't, meaning real Base44 ids would have been silently truncated to `0`. Fixed end-to-end: `Assets/AssetService.php`, `Database/Repositories/{AssetRepository,MediaFolderRepository,FileRecordRepository,ProductionJobRepository}.php`, `Admin/{AssetAdminHandler,FormHandler,MediaAjaxUploadHandler,MediaMultipleUploadHandler}.php`, `API/Routes/{AssetRoutes,MediaFolderRoutes,FileRoutes}.php`, `Files/FileUploadService.php`, admin views (number inputs → text inputs).
+- Production settings on IONOS (`s1097820712.onlinehome.fr`): `sync_mode = hybrid`, `api_base_url` pointed at the ATLAS ERP function. Verified live: invalid organisation id correctly rejected, bad API key correctly returns 401.
+
 ### 0.2.0 — 2026-07-02
 
 Removed business-domain logic that had leaked into this plugin, violating `books/architecture/07-wordpress-base44-roles.md` ("WordPress sells. Base44 operates."):
