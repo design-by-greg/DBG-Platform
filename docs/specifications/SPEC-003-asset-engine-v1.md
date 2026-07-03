@@ -2,6 +2,8 @@
 
 Status: Draft
 
+> **Implementation note (2026-07-03, see ADR-007 and `books/architecture/07-wordpress-base44-roles.md`):** Unlike the other engines in this doc, Asset Engine is **correctly split, already implemented, and should stay that way**: the WordPress plugin owns the actual files, versions, folders, tags and media health tooling (`src/Files/`, `src/Assets/`, `src/Admin/Media*`) — that part is intentionally NOT in Base44. What moved to Base44 is only the *ownership reference*: an Asset's `organisation_id`/`project_id` must point at a real ATLAS ERP record, checked live through `ReferenceValidator`/`RemoteClient` (never a local `organisations`/`projects` table — that mistake was already made and reverted once, see ADR-007). The "Reorder Product Asset" flow below, which hands off to Commerce/Order, is the one part of this spec that continues into Base44 (see SPEC-004's note) once a cart/order is actually created.
+
 ## Mission
 
 Asset Engine manages the reusable visual, commercial and production elements owned by an Organisation.
