@@ -30,3 +30,4 @@ Chaque ADR doit expliquer :
 - ADR-006 — Product Strategy
 - ADR-024 — Project Driven Architecture
 - ADR-025 — Multi-brand Model
+- ADR-007 — ERP Business Logic Migration to Base44
