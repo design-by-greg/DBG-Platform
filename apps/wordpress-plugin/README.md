@@ -36,6 +36,15 @@ It must not become the full business domain. It is an interface and integration 
 
 ## Changelog
 
+### 0.2.2 — 2026-07-03
+
+Removed dead/broken code duplicated between `Admin/FormHandler.php` and `Admin/AssetAdminHandler.php`:
+
+- `FormHandler::createAsset()`, `updateAsset()` were unreachable — `AssetAdminHandler` registers on the same `admin_post_dbg_create_asset` / `dbg_update_asset` hooks first and always `exit`s after redirecting, so these methods never ran.
+- `FormHandler::uploadMedia()` was likewise unreachable — `MediaMultipleUploadHandler` registers on `admin_post_dbg_upload_media` at priority 1 (before `FormHandler`'s default priority) and always exits.
+- `FormHandler::deleteAsset()` was removed: no admin view ever submits to `admin_post_dbg_delete_asset` (the UI only offers Archive/Restore), and the method called `AssetRepository::delete()`, which doesn't exist — it would have fatal-errored if ever reached.
+- `FormHandler` now only owns the hooks it's the sole handler for: settings, file archive/download/version-upload, media folder create/move. Asset CRUD stays exclusively in `AssetAdminHandler`.
+
 ### 0.2.1 — 2026-07-03
 
 Wired the cross-system reference validation bridge to ATLAS ERP (`validateReference` Base44 function) and fixed a data-typing bug found in the process:

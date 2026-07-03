@@ -3,7 +3,6 @@
 namespace DBGPlatform\Admin;
 
 use DBGPlatform\Audit\AuditLogger;
-use DBGPlatform\Database\Repositories\AssetRepository;
 use DBGPlatform\Database\Repositories\FileRecordRepository;
 use DBGPlatform\Database\Repositories\FileVersionRepository;
 use DBGPlatform\Database\Repositories\MediaFolderRepository;
@@ -11,43 +10,28 @@ use DBGPlatform\Files\FileUploadService;
 use DBGPlatform\Files\SecureDownloadService;
 use DBGPlatform\Settings\SettingsRepository;
 
+/**
+ * Handles admin-post form submissions that are NOT already owned by a more
+ * specific handler. Asset create/update/delete live in AssetAdminHandler,
+ * and multi-file media upload lives in MediaMultipleUploadHandler — do not
+ * re-register those hooks here (see ADR-007 changelog 2026-07-03 cleanup:
+ * this class used to shadow-register `dbg_create_asset` / `dbg_update_asset`
+ * / `dbg_upload_media`, but those callbacks were unreachable dead code
+ * because the other handlers run first and `exit` after redirecting; the
+ * standalone `dbg_delete_asset` handler was also removed because no view
+ * ever submits to it and it called a repository method that doesn't exist —
+ * asset removal goes through archive/restore in AssetAdminHandler instead).
+ */
 class FormHandler
 {
     public function register(): void
     {
-        add_action('admin_post_dbg_create_asset', [$this, 'createAsset']);
-        add_action('admin_post_dbg_update_asset', [$this, 'updateAsset']);
-        add_action('admin_post_dbg_delete_asset', [$this, 'deleteAsset']);
         add_action('admin_post_dbg_update_settings', [$this, 'updateSettings']);
-        add_action('admin_post_dbg_upload_media', [$this, 'uploadMedia']);
         add_action('admin_post_dbg_archive_file', [$this, 'archiveFile']);
         add_action('admin_post_dbg_download_file', [$this, 'downloadFile']);
         add_action('admin_post_dbg_upload_file_version', [$this, 'uploadFileVersion']);
         add_action('admin_post_dbg_create_media_folder', [$this, 'createMediaFolder']);
         add_action('admin_post_dbg_move_file_folder', [$this, 'moveFileFolder']);
-    }
-
-    public function createAsset(): void
-    {
-        $this->guard('dbg_create_asset');
-        $this->validateAsset();
-        (new AssetRepository())->create($this->assetData());
-        $this->redirect('dbg-platform-assets', 'created');
-    }
-
-    public function updateAsset(): void
-    {
-        $this->guard('dbg_update_asset');
-        $this->validateAsset();
-        (new AssetRepository())->update(absint($_POST['dbg_id'] ?? 0), $this->assetData());
-        $this->redirect('dbg-platform-assets', 'updated');
-    }
-
-    public function deleteAsset(): void
-    {
-        $this->guard('dbg_delete_asset');
-        (new AssetRepository())->delete(absint($_POST['dbg_id'] ?? 0));
-        $this->redirect('dbg-platform-assets', 'deleted');
     }
 
     public function updateSettings(): void
@@ -65,48 +49,6 @@ class FormHandler
 
         (new AuditLogger())->record('updated', 'settings', null, ['sync_mode' => $settings['sync_mode']]);
         $this->redirect('dbg-platform-settings', 'updated');
-    }
-
-    public function uploadMedia(): void
-    {
-        $this->guard('dbg_upload_media');
-
-        $organisationId = sanitize_text_field((string) ($_POST['organisation_id'] ?? ''));
-        $projectId = trim((string) ($_POST['project_id'] ?? '')) !== '' ? sanitize_text_field((string) $_POST['project_id']) : null;
-        $folderId = absint($_POST['folder_id'] ?? 0);
-
-        if (trim($organisationId) === '') {
-            $this->redirect('dbg-platform-media', 'error', ['Organisation ID is required.']);
-        }
-
-        if (empty($_FILES['file'])) {
-            $this->redirect('dbg-platform-media', 'error', ['File is required.']);
-        }
-
-        $result = (new FileUploadService())->upload($_FILES['file'], [
-            'organisation_id' => $organisationId,
-            'project_id' => $projectId,
-        ]);
-
-        if (empty($result['success'])) {
-            $this->redirect('dbg-platform-media', 'error', [$result['message'] ?? 'Upload failed.']);
-        }
-
-        $assetId = (new AssetRepository())->create([
-            'organisation_id' => $organisationId,
-            'project_id' => $projectId,
-            'type' => 'document',
-            'name' => $result['original_name'],
-        ]);
-
-        $result['asset_id'] = $assetId;
-        $result['folder_id'] = $folderId;
-        $result['file_record_id'] = (new FileRecordRepository())->create($result);
-        (new FileVersionRepository())->create($result['file_record_id'], $result, 'Initial upload');
-
-        (new AuditLogger())->record('uploaded', 'file', $result['file_record_id'], $result);
-
-        $this->redirect('dbg-platform-media', 'uploaded');
     }
 
     public function uploadFileVersion(): void
@@ -197,17 +139,6 @@ class FormHandler
         (new SecureDownloadService())->download($fileId);
     }
 
-    private function validateAsset(): void
-    {
-        $validator = (new FormValidator())
-            ->positiveInt('dbg_asset_organisation_id', 'Organisation ID', $_POST)
-            ->allowedValue('dbg_asset_type', 'Asset type', ['logo', 'product', 'bat', 'document', 'image', 'template'], $_POST)
-            ->required('dbg_asset_name', 'Asset name', $_POST);
-        if (!$validator->passes()) {
-            $this->redirect('dbg-platform-assets', 'error', $validator->errors());
-        }
-    }
-
     private function validateSettings(): void
     {
         $validator = (new FormValidator())
@@ -215,16 +146,6 @@ class FormHandler
         if (!$validator->passes()) {
             $this->redirect('dbg-platform-settings', 'error', $validator->errors());
         }
-    }
-
-    private function assetData(): array
-    {
-        return [
-            'organisation_id' => absint($_POST['dbg_asset_organisation_id'] ?? 0),
-            'project_id' => absint($_POST['dbg_asset_project_id'] ?? 0),
-            'type' => sanitize_key($_POST['dbg_asset_type'] ?? 'document'),
-            'name' => sanitize_text_field($_POST['dbg_asset_name'] ?? ''),
-        ];
     }
 
     private function guard(string $action): void
